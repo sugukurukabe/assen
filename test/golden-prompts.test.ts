@@ -27,12 +27,13 @@ import { runGoldenPromptFixtures } from "../src/services/golden-prompts/run-gold
 import { goldenPromptFixtures } from "./golden-prompts/fixtures.js";
 
 describe("golden promptハーネス（heuristicスタブでの配線検証） / golden-prompt harness (wiring check via heuristic stub)", () => {
-  it("実際に登録されている10個のM1ツールが取得できる / retrieves all 10 registered M1 tools", async () => {
+  it("実際に登録されている11個のM1+M2 Phase 1ツールが取得できる / retrieves all 11 registered M1+M2 Phase 1 tools", async () => {
     const tools = await listRegisteredTools();
     const toolNames = tools.map((tool) => tool.name).sort();
     expect(toolNames).toEqual(
       [
         "compliance.evaluate",
+        "dispatch_assignment.confirm",
         "document.approve",
         "document.attach_executed_copy",
         "document.generate_draft",

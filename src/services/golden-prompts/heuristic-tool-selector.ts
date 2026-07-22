@@ -38,6 +38,7 @@ const NEGATION_CUES = ["しないで", "せずに", "しないでください", 
 const TOOL_KEYWORDS: Record<string, string[]> = {
   "job_order.analyze": ["求人メール", "解析", "原文"],
   "job_order.confirm": ["帳簿", "確定", "求人票"],
+  "dispatch_assignment.confirm": ["派遣就業", "派遣元管理台帳", "台帳に記帳"],
   "compliance.evaluate": ["コンプライアンス", "適合性", "評価", "判定"],
   "document.preview": ["プレビュー", "下書き確認", "仕上がり"],
   "document.generate_draft": ["ドラフト", "労働条件通知書", "書類を作成", "生成して"],

@@ -8,18 +8,25 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ServiceContext } from "../protocol/service-context.js";
-import { jobOrders } from "../db/schema/ledgers.js";
+import { dispatchAssignments, jobOrders } from "../db/schema/ledgers.js";
 import { evaluateSubjectCompliance } from "../services/rules/evaluate-subject.js";
 import { overallResult } from "../services/rules/five-value-result.js";
+import { getDocTypeDefinition, SUPPORTED_DOC_TYPES } from "../services/documents/doc-type-registry.js";
 import { toToolErrorResult, toToolResult } from "./common-envelope.js";
 import { logMessage } from "../lib/logger.js";
 import { UserInputError } from "../lib/errors.js";
 
-const SUPPORTED_SUBJECT_TYPES = ["job_order"] as const;
+const SUPPORTED_SUBJECT_TYPES = ["job_order", "dispatch_assignment"] as const;
 
 const inputSchema = {
   subjectType: z.enum(SUPPORTED_SUBJECT_TYPES).describe("判定対象の種別 / Subject type to evaluate / Jenis subjek yang dievaluasi"),
   subjectId: z.string().uuid().describe("判定対象のID / Subject id / ID subjek"),
+  docType: z
+    .enum(SUPPORTED_DOC_TYPES)
+    .optional()
+    .describe(
+      "subjectType=dispatch_assignmentの場合に必須。どの書類（A2/A3/A10/labor_conditions_notice）を基準に必須項目を判定するか指定する / Required when subjectType=dispatch_assignment. Selects which document's required-field set (A2/A3/A10/labor_conditions_notice) to judge against / Wajib saat subjectType=dispatch_assignment. Memilih set field wajib dokumen mana (A2/A3/A10/labor_conditions_notice) yang menjadi acuan penilaian",
+    ),
 };
 
 export function registerComplianceEvaluate(server: McpServer, context: ServiceContext): void {
@@ -39,7 +46,41 @@ export function registerComplianceEvaluate(server: McpServer, context: ServiceCo
     },
     async (args) => {
       try {
-        if (args.subjectType !== "job_order") {
+        let mappingFileName: string;
+        let row: Record<string, unknown> | undefined;
+
+        if (args.subjectType === "job_order") {
+          mappingFileName = "job-order-ledger.json";
+          [row] = await context.db.select().from(jobOrders).where(eq(jobOrders.id, args.subjectId));
+          if (!row) {
+            throw new UserInputError(
+              `job_order ${args.subjectId} が見つかりません / job_order ${args.subjectId} not found`,
+              "subjectIdを確認してください / Please verify the subjectId",
+            );
+          }
+        } else if (args.subjectType === "dispatch_assignment") {
+          if (!args.docType) {
+            throw new UserInputError(
+              "subjectType=dispatch_assignmentの場合、docTypeが必須です / docType is required when subjectType=dispatch_assignment",
+              `docTypeにA2/A3/A10/labor_conditions_noticeのいずれかを指定してください（対応済み: ${SUPPORTED_DOC_TYPES.join(", ")}） / Please specify one of A2/A3/A10/labor_conditions_notice as docType (supported: ${SUPPORTED_DOC_TYPES.join(", ")})`,
+            );
+          }
+          const docTypeDefinition = getDocTypeDefinition(args.docType);
+          if (!docTypeDefinition) {
+            throw new UserInputError(
+              `未対応のdocTypeです / Unsupported docType: ${args.docType}`,
+              `対応済みのdocType: ${SUPPORTED_DOC_TYPES.join(", ")}`,
+            );
+          }
+          mappingFileName = docTypeDefinition.mappingFileName;
+          [row] = await context.db.select().from(dispatchAssignments).where(eq(dispatchAssignments.id, args.subjectId));
+          if (!row) {
+            throw new UserInputError(
+              `dispatch_assignment ${args.subjectId} が見つかりません / dispatch_assignment ${args.subjectId} not found`,
+              "subjectIdを確認してください / Please verify the subjectId",
+            );
+          }
+        } else {
           // SUPPORTED_SUBJECT_TYPESが将来増えた場合に到達しうるため、型上はnever化されても実行時ガードとして残す
           // Kept as a runtime guard even though it type-narrows to never today; becomes reachable once SUPPORTED_SUBJECT_TYPES grows
           // Dipertahankan sebagai guard runtime meski ter-narrow ke never saat ini; akan reachable saat SUPPORTED_SUBJECT_TYPES bertambah
@@ -50,20 +91,12 @@ export function registerComplianceEvaluate(server: McpServer, context: ServiceCo
           );
         }
 
-        const [row] = await context.db.select().from(jobOrders).where(eq(jobOrders.id, args.subjectId));
-        if (!row) {
-          throw new UserInputError(
-            `job_order ${args.subjectId} が見つかりません / job_order ${args.subjectId} not found`,
-            "subjectIdを確認してください / Please verify the subjectId",
-          );
-        }
-
         const findings = await evaluateSubjectCompliance(context.db, {
           tenantId: context.principal.tenantId,
-          subjectType: "job_order",
+          subjectType: args.subjectType,
           subjectId: args.subjectId,
-          mappingFileName: "job-order-ledger.json",
-          row: row,
+          mappingFileName,
+          row,
         });
 
         return toToolResult({
@@ -73,7 +106,7 @@ export function registerComplianceEvaluate(server: McpServer, context: ServiceCo
           status: overallResult(findings),
           missingFields: findings.flatMap((finding) => finding.missingFields),
           findings,
-          evidenceRefs: [`assen://audit/job_order/${args.subjectId}`],
+          evidenceRefs: [`assen://audit/${args.subjectType}/${args.subjectId}`],
           nextActions:
             overallResult(findings) === "pass"
               ? ["document.previewで書類プレビューを確認してください"]

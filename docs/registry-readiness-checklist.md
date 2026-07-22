@@ -5,7 +5,7 @@
 このドキュメントは「Assenを公式MCPレジストリ（Anthropicコネクタディレクトリ・ChatGPT Appsマーケットプレイス等）へ提出する」ために必要な作業を、
 ①**すでにコードレベルで整備済み**、②**エンジニアだけでは決められない意思決定**、③**設計書§11のM2/M3客観ゲート（必須・未達成）**の3種類に分けて管理します。
 
-このドキュメントは**登録申請のGoを意味しません**。設計書v1 §11・24行目の方針どおり、**外販β・レジストリ公開申請はM3の客観ゲート通過後**に限ります。現在のマイルストーンはM1完了・M2未着手です。
+このドキュメントは**登録申請のGoを意味しません**。設計書v1 §11・24行目の方針どおり、**外販β・レジストリ公開申請はM3の客観ゲート通過後**に限ります。現在のマイルストーンはM1完了・M2 Phase 1（基盤整備＋派遣3点書類A2/A3/A10＋A4台帳）着手済みです。詳細は下記C節参照。
 
 This document tracks the work needed to submit Assen to a public MCP registry (Anthropic connector directory,
 ChatGPT Apps marketplace, etc.), split into three kinds: (1) infrastructure already prepared at the code level,
@@ -43,6 +43,7 @@ Milestone saat ini adalah M1 selesai, M2 belum dimulai.
 | バックアップ復元ドリル | `scripts/db-backup.sh`／`scripts/db-restore-drill.sh`／`scripts/db-restore.sh`／`scripts/drill-demo-data.ts`を新規作成。ローカルDocker Composeの`assen`データベースで実際に復元ドリルを実行し、行数一致・GRANT維持・audit chain検証・実際の`assen`データベースのdrop→recreate→restore後の全テストスイート通過まで実地確認済み。詳細は下記D節「バックアップ復旧」参照 |
 | MCP新旧プロトコル互換テスト | `src/server.ts`から`createAssenHttpServer()`を切り出し、実際にHTTPサーバーを起動して`initialize`のprotocolVersionを変えて送る回帰テスト（`test/protocol-version-compat.test.ts`）を新規作成。SDKが対応する全5バージョンでの成功と、未対応バージョン（`2026-07-28` RC）を送っても安全にフォールバック応答することを実地確認済み。詳細は下記D節参照 |
 | **monorepo統合（パス移設）** | 設計書§2.3の決定（下記B節参照）どおり、単独リポジトリだったAssenを`aios`リポジトリの`apps/compliance/`へ実際に移設した。GitHub Actionsのワークフローはリポジトリルートの`.github/workflows/`にしか置けない仕様のため、元の`.github/workflows/ci.yml`は`aios/.github/workflows/compliance-ci.yml`として`paths: ["apps/compliance/**"]`フィルタ＋`working-directory: apps/compliance`付きで再作成し、Dockerビルドは`docker build -f apps/compliance/Dockerfile ... apps/compliance`（コンテキストを`apps/compliance`に限定）へ調整した。データ層（Postgres/audit_events/approval_requests）はAIOSのSupabase/BigQuery/Approved Action Executorとは意図的に統合していない（別進行、下記参照）。移設後、新しい場所で`typecheck`/`lint`/`test`/`build`が実際に通ることを確認済み |
+| **M2 Phase 1：基盤整備＋派遣3点書類（A2/A3/A10）＋A4台帳自動記帳** | ④〜⑩・A2/A3/A4/A5/A10の正式な書類名定義がリポジトリのどこにも存在しなかったため、v0ドラフトから[`docs/document-catalog.md`](document-catalog.md)へ正式インポート（壁承認済み、社労士レビューは未実施）。`dispatch_assignment.confirm`ツールを新規実装し、派遣就業確定と同時にA4派遣元管理台帳（`dispatch_ledger_entries`）へ自動記帳する（`job_order.confirm`と同型パターン）。`document.generate_draft`/`document.preview`/`compliance.evaluate`を`docType`単位の汎用ルーター（`src/services/documents/doc-type-registry.ts`）へリファクタし、既存`labor_conditions_notice`に加えA2（`dispatch_individual_contract`）・A3（`dispatch_working_conditions_notice`）・A10（`dispatch_worker_notice`）の3docTypeを追加。テンプレート・mapping項目は`operations/registries/template_registry/`の既存様式（A2/A10は`{{field}}`差込済み・A3は空欄様式）を転記・変換したもので、法的文言は創作していない。既存59件超のテストスイート（`assen_app`ロール・RLS強制下）全通過を確認済み。**T2P書類④〜⑩・期限イベント・採否理由チェーン・手数料③・freee連携・法改正追従は本フェーズ対象外**（下記C節参照） |
 
 ---
 
@@ -62,12 +63,18 @@ Milestone saat ini adalah M1 selesai, M2 belum dimulai.
 
 ---
 
-## C. M2ゲート：T2P（未着手・公開の前提条件） / M2 gate: T2P (not started; a precondition for publication) / Gate M2: T2P (belum dimulai; prasyarat publikasi)
+## C. M2ゲート：T2P（Phase 1着手・公開の前提条件） / M2 gate: T2P (Phase 1 in progress; a precondition for publication) / Gate M2: T2P (Phase 1 sedang berjalan; prasyarat publikasi)
 
-設計書§11より（〜14週想定）。
+設計書§11より（〜14週想定）。M2は7項目に分かれ、Phase 1で最初の1項目（基盤整備＋派遣3点書類）に着手した。
 
-- [ ] T2P全書類（⑤⑥⑦⑧⑨⑩）の生成
-- [ ] 派遣3点（A2/A3/A10/台帳）の生成
+- [ ] T2P全書類（④求人条件明示書・⑤本人同意書・⑥T2P個別契約書・⑦転換条件覚書・⑧不採用理由請求・⑨不採用理由通知・⑩直接雇用切替同意書）の生成（[`docs/document-catalog.md`](document-catalog.md)で書類名は確定したが、生成ロジックは未着手）
+- [~] 派遣3点（A2/A3/A10/台帳）の生成 — **Phase 1でエンジニアリング部分に着手**（上記A節「M2 Phase 1」参照）
+  - [x] `dispatch_assignment.confirm`ツール（派遣就業確定＋A4派遣元管理台帳の自動記帳）
+  - [x] A2（個別契約書）・A3（就業条件明示書）・A10（派遣先通知）のdomain schema・テンプレート・mapping・`compliance.evaluate`対応
+  - [ ] A5（派遣先台帳雛形）は未着手（要否は次フェーズで判断、[`docs/document-catalog.md`](document-catalog.md)参照）
+  - [ ] 社労士による法的レビュー（テンプレート・必須項目の正確性）は未実施
+  - [ ] T2P（紹介予定派遣）時のA3 `t2pDisclosure`・A10 `periodLimitExceptionCategory`等の条件分岐ロジックは未実装（現状は任意項目としてスキーマ上受け付けるのみ）
+  - [ ] `document.request_approval`→`document.approve`→交付の縦切り一本を、新docType（A2/A3/A10）で実際に通すE2Eシナリオテストは未実施（既存M1ゲートテストはlabor_conditions_noticeのみ）
 - [ ] 期限イベント（4か月/5か月/6か月/closeout）の実装
 - [ ] 採否理由チェーンの実装
 - [ ] 手数料③の計算・記録

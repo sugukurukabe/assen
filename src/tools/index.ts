@@ -7,6 +7,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ServiceContext } from "../protocol/service-context.js";
 import { registerJobOrderAnalyze } from "./job-order-analyze.js";
 import { registerJobOrderConfirm } from "./job-order-confirm.js";
+import { registerDispatchAssignmentConfirm } from "./dispatch-assignment-confirm.js";
 import { registerComplianceEvaluate } from "./compliance-evaluate.js";
 import { registerDocumentPreview } from "./document-preview.js";
 import { registerDocumentGenerateDraft } from "./document-generate-draft.js";
@@ -19,6 +20,7 @@ import { registerDocumentSupersede } from "./document-supersede.js";
 export function registerAllTools(server: McpServer, context: ServiceContext): void {
   registerJobOrderAnalyze(server, context);
   registerJobOrderConfirm(server, context);
+  registerDispatchAssignmentConfirm(server, context);
   registerComplianceEvaluate(server, context);
   registerDocumentPreview(server, context);
   registerDocumentGenerateDraft(server, context);

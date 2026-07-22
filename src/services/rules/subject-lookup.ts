@@ -1,10 +1,27 @@
 /**
- * subjectType→mapping file／DBテーブルの対応集約。document.approveと承認UIの両方から共有する
+ * subjectType→DBテーブルの対応集約。document.approveと承認UIの両方から共有する
  * （拡張時：新しいsubjectTypeを追加する際はここへ1箇所追記すればよい）
- * Centralizes the subjectType -> mapping-file / DB-table lookup, shared by document.approve and the approval UI
- * (when extending: add new subjectTypes here in exactly one place)
- * Memusatkan pemetaan subjectType -> mapping-file / tabel DB, dibagikan oleh document.approve dan approval UI
- * (saat memperluas: tambahkan subjectType baru di sini pada satu tempat saja)
+ *
+ * mapping fileの解決は、subjectType単独ではdocType曖昧（dispatch_assignmentはA2/A3/A10/labor_conditions_notice
+ * の4docTypeを持ちうる）ため、ここでは行わない。呼び出し側がdocument.docTypeを持っている場合は
+ * doc-type-registry.tsのgetDocTypeDefinition()を使うこと（job_orderのようにdocTypeが1つしかないsubjectTypeは
+ * job-order-ledger.jsonを直接使ってよい）
+ *
+ * Centralizes the subjectType -> DB-table lookup, shared by document.approve and the approval UI
+ * (when extending: add new subjectTypes here in exactly one place).
+ *
+ * Mapping-file resolution is intentionally NOT done here, because subjectType alone is ambiguous for docType
+ * (dispatch_assignment can back any of A2/A3/A10/labor_conditions_notice). Callers holding a document's docType
+ * should use getDocTypeDefinition() in doc-type-registry.ts instead (subjectTypes with exactly one docType, like
+ * job_order, may keep using job-order-ledger.json directly)
+ *
+ * Memusatkan pemetaan subjectType -> tabel DB, dibagikan oleh document.approve dan approval UI
+ * (saat memperluas: tambahkan subjectType baru di sini pada satu tempat saja).
+ *
+ * Resolusi mapping-file sengaja TIDAK dilakukan di sini, karena subjectType saja ambigu untuk docType
+ * (dispatch_assignment dapat mendukung salah satu dari A2/A3/A10/labor_conditions_notice). Pemanggil yang
+ * memiliki docType dari sebuah document sebaiknya memakai getDocTypeDefinition() di doc-type-registry.ts
+ * (subjectType dengan tepat satu docType, seperti job_order, boleh tetap memakai job-order-ledger.json langsung)
  */
 import { eq } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
@@ -15,7 +32,6 @@ type Db = NodePgDatabase<typeof schema>;
 
 export const SUBJECT_TYPE_MAPPING_FILE: Record<string, string> = {
   job_order: "job-order-ledger.json",
-  dispatch_assignment: "labor-conditions-notice.json",
 };
 
 /**

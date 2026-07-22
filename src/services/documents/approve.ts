@@ -15,6 +15,7 @@ import { appendAuditEvent } from "../../audit/hash-chain.js";
 import { evaluateSubjectCompliance } from "../rules/evaluate-subject.js";
 import { assertNoBlockingFindings } from "../rules/five-value-result.js";
 import { SUBJECT_TYPE_MAPPING_FILE, loadSubjectRow } from "../rules/subject-lookup.js";
+import { getDocTypeDefinition } from "./doc-type-registry.js";
 import { InvalidTransitionError, UserInputError } from "../../lib/errors.js";
 import type { AuthenticatedPrincipal } from "../../lib/auth.js";
 
@@ -103,7 +104,11 @@ export async function approveDocument(db: Db, input: ApproveDocumentInput): Prom
     }
 
     if (input.decision === "approved") {
-      const mappingFileName = SUBJECT_TYPE_MAPPING_FILE[approval.subjectType];
+      // docType単位で解決する（dispatch_assignmentはA2/A3/A10/labor_conditions_noticeを併せ持つためsubjectTypeだけでは曖昧）。
+      // job_orderのようにdoc-type-registryに未登録のsubjectTypeはSUBJECT_TYPE_MAPPING_FILEへフォールバックする
+      // Resolved per-docType (subjectType alone is ambiguous for dispatch_assignment, which can back A2/A3/A10/labor_conditions_notice).
+      // Falls back to SUBJECT_TYPE_MAPPING_FILE for subjectTypes not registered in doc-type-registry (e.g. job_order)
+      const mappingFileName = getDocTypeDefinition(currentDocument.docType)?.mappingFileName ?? SUBJECT_TYPE_MAPPING_FILE[approval.subjectType];
       if (mappingFileName) {
         const subjectRow = await loadSubjectRow(tx, approval.subjectType, approval.subjectId);
         if (subjectRow) {

@@ -18,6 +18,12 @@ export const goldenPromptFixtures: GoldenPromptFixture[] = [
   // --- 直接指示 / Direct instructions / Instruksi langsung ---
   { id: "direct-analyze", category: "direct", prompt: "この求人メールを解析してください。", expectedToolNames: ["job_order.analyze"] },
   { id: "direct-confirm", category: "direct", prompt: "この求人情報を帳簿に確定してください。", expectedToolNames: ["job_order.confirm"] },
+  {
+    id: "direct-dispatch-assignment-confirm",
+    category: "direct",
+    prompt: "この派遣就業を派遣元管理台帳に記帳してください。",
+    expectedToolNames: ["dispatch_assignment.confirm"],
+  },
   { id: "direct-evaluate", category: "direct", prompt: "この案件のコンプライアンス評価をしてください。", expectedToolNames: ["compliance.evaluate"] },
   { id: "direct-preview", category: "direct", prompt: "この書類のプレビューを見せてください。", expectedToolNames: ["document.preview"] },
   {
@@ -59,6 +65,12 @@ export const goldenPromptFixtures: GoldenPromptFixture[] = [
     category: "indirect",
     prompt: "この求人票の内容を帳簿に載せてもらってもいいですか？",
     expectedToolNames: ["job_order.confirm"],
+  },
+  {
+    id: "indirect-dispatch-assignment-confirm",
+    category: "indirect",
+    prompt: "派遣の件、そろそろ派遣元管理台帳に記帳しておいてもらえますか？",
+    expectedToolNames: ["dispatch_assignment.confirm"],
   },
   {
     id: "indirect-evaluate",
@@ -121,6 +133,13 @@ export const goldenPromptFixtures: GoldenPromptFixture[] = [
     id: "negative-confirm",
     category: "negative",
     prompt: "この案件はまだ帳簿に確定しないでください。",
+    expectedToolNames: [],
+    expectNoToolCall: true,
+  },
+  {
+    id: "negative-dispatch-assignment-confirm",
+    category: "negative",
+    prompt: "この派遣就業はまだ派遣元管理台帳に記帳しないでください。",
     expectedToolNames: [],
     expectNoToolCall: true,
   },

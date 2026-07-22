@@ -14,6 +14,7 @@ import { approvalRequests, documents } from "../../db/schema/documents.js";
 import { getObjectBytes } from "../../lib/storage.js";
 import { evaluateSubjectCompliance } from "../../services/rules/evaluate-subject.js";
 import { SUBJECT_TYPE_MAPPING_FILE, loadSubjectRow } from "../../services/rules/subject-lookup.js";
+import { getDocTypeDefinition } from "../../services/documents/doc-type-registry.js";
 import { renderApprovalUiHtml } from "./render.js";
 
 async function loadRenderedText(objectUri: string | null): Promise<string | null> {
@@ -90,7 +91,8 @@ export function registerApprovalUiResource(server: McpServer, context: ServiceCo
         loadRenderedText(previousDocument?.generatedObjectUri ?? null),
       ]);
 
-      const mappingFileName = SUBJECT_TYPE_MAPPING_FILE[approval.subjectType];
+      // docType単位で解決する（詳細はsubject-lookup.tsのコメント参照） / Resolved per-docType (see subject-lookup.ts for rationale) / Diresolusikan per-docType (lihat subject-lookup.ts)
+      const mappingFileName = getDocTypeDefinition(currentDocument.docType)?.mappingFileName ?? SUBJECT_TYPE_MAPPING_FILE[approval.subjectType];
       const subjectRow = mappingFileName ? await loadSubjectRow(context.db, approval.subjectType, approval.subjectId) : undefined;
       const findings =
         mappingFileName && subjectRow
