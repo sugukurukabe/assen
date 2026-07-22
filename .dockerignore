@@ -1,0 +1,12 @@
+node_modules
+dist
+.env
+.env.*
+*.log
+.git
+.github
+docs
+README.md
+LICENSE
+SECURITY.md
+法定書類自動化MCP_設計書_v1.md

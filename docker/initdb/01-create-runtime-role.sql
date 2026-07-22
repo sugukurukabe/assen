@@ -1,0 +1,11 @@
+-- ローカル開発用：superuser/BYPASSRLSを持たないruntimeロール（assen_app）を作成する。
+-- 本番/CIではこのロールを別途プロビジョニングすること（このファイルはdocker-composeの初回起動時のみ実行される）
+-- Local dev only: creates the runtime role (assen_app) with no superuser/BYPASSRLS privilege.
+-- Provision this role separately in production/CI (this file only runs on the first docker-compose startup)
+-- Hanya untuk dev lokal: membuat role runtime (assen_app) tanpa privilege superuser/BYPASSRLS.
+-- Sediakan role ini secara terpisah di produksi/CI (file ini hanya berjalan pada startup docker-compose pertama)
+--
+-- パスワードはローカル開発専用の値。本番はSecret Manager等で管理された値を使うこと
+-- Password is a local-dev-only value. Use a value managed by Secret Manager etc. in production
+-- Password adalah nilai khusus dev lokal. Gunakan nilai yang dikelola Secret Manager dll. di produksi
+create role assen_app with login password 'assen_app_local_dev_only' nosuperuser nobypassrls noreplication;

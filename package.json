@@ -1,0 +1,47 @@
+{
+  "name": "@sugukuru/assen",
+  "version": "0.1.0",
+  "description": "法定書類自動化MCP「Assen」。職安法・派遣法・労基法の法定帳簿・書類生成を継続的コンプライアンスOSとして提供する。 / Legal-document automation MCP server providing a continuous compliance OS for Japanese employment placement and dispatch law. / Server MCP otomatisasi dokumen hukum yang menyediakan OS kepatuhan berkelanjutan untuk hukum ketenagakerjaan Jepang.",
+  "type": "module",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/src/server.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src test scripts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/db/migrate.ts",
+    "outbox:worker": "tsx src/services/outbox-worker/run.ts",
+    "legal:check-mapping": "tsx legal/mapping/check-mapping.ts",
+    "audit:verify": "tsx src/audit/verify-chain.ts",
+    "golden-prompts:run": "tsx test/golden-prompts/run-cli.ts",
+    "db:backup": "scripts/db-backup.sh",
+    "db:restore-drill": "scripts/db-restore-drill.sh"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1092.0",
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "drizzle-orm": "0.45.2",
+    "jose": "^6.2.4",
+    "pg": "8.22.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.19.0",
+    "@types/node": "24.12.0",
+    "@types/pg": "8.15.5",
+    "drizzle-kit": "0.31.10",
+    "eslint": "9.19.0",
+    "tsx": "4.23.1",
+    "typescript": "5.9.3",
+    "typescript-eslint": "^8.65.0",
+    "vitest": "4.1.10"
+  }
+}

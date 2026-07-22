@@ -1,0 +1,17 @@
+{
+  "docType": "job_seeker_ledger",
+  "docTypeLabel": "求職管理簿（帳簿②） / Job-seeker ledger (Ledger #2) / Buku besar pencari kerja (Buku Besar #2)",
+  "table": "jobSeekers",
+  "legalBasis": "職業安定法施行規則 第17条の2 記載要領",
+  "items": [
+    { "legalItem": "受付年月日", "dbColumn": "acceptedAt", "outputField": "受付年月日" },
+    { "legalItem": "氏名（PII・暗号化列）", "dbColumn": "nameEnc", "outputField": "氏名" },
+    { "legalItem": "住所（PII・暗号化列）", "dbColumn": "addressEnc", "outputField": "住所" },
+    { "legalItem": "生年月日（PII・暗号化列）", "dbColumn": "birthDateEnc", "outputField": "生年月日" },
+    { "legalItem": "希望職種", "dbColumn": "desiredOccupation", "outputField": "希望職種" },
+    { "legalItem": "有効期間", "dbColumn": "validUntil", "outputField": "有効期間" },
+    { "legalItem": "個人情報の取扱いに関する同意（同意日/範囲/提供先）", "dbColumn": "piiConsent", "outputField": "個人情報同意記録" },
+    { "legalItem": "求職者の状態", "dbColumn": "status", "outputField": "求職状況" },
+    { "legalItem": "帳簿の保存期限（完結の日から2年）", "dbColumn": "retentionUntil", "outputField": "保存期限" }
+  ]
+}

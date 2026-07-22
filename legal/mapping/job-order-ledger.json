@@ -1,0 +1,23 @@
+{
+  "docType": "job_order_ledger",
+  "docTypeLabel": "求人管理簿（帳簿①） / Job-order ledger (Ledger #1) / Buku besar lowongan (Buku Besar #1)",
+  "table": "jobOrders",
+  "legalBasis": "職業安定法施行規則 第17条の2 記載要領",
+  "items": [
+    { "legalItem": "受付年月日", "dbColumn": "acceptedAt", "outputField": "受付年月日" },
+    { "legalItem": "事業所の名称・所在地", "dbColumn": "employerSnapshotId", "outputField": "事業所名/所在地（スナップショット展開）" },
+    { "legalItem": "有効期間", "dbColumn": "validUntil", "outputField": "有効期間" },
+    { "legalItem": "求人数", "dbColumn": "headcount", "outputField": "求人数" },
+    { "legalItem": "職種", "dbColumn": "occupation", "outputField": "職種" },
+    { "legalItem": "就業場所", "dbColumn": "workLocation", "outputField": "就業場所" },
+    { "legalItem": "雇用形態（無期/有期）", "dbColumn": "employmentPeriodType", "outputField": "雇用形態" },
+    { "legalItem": "雇用期間の詳細", "dbColumn": "employmentPeriodDetail", "outputField": "雇用期間" },
+    { "legalItem": "賃金の下限・上限", "dbColumn": "wageAmountMin,wageAmountMax", "outputField": "賃金" },
+    { "legalItem": "賃金の支払単位", "dbColumn": "wageUnit", "outputField": "賃金単位" },
+    { "legalItem": "紹介予定派遣（T2P）に該当するか", "dbColumn": "t2pFlag", "outputField": "様式8号別掲欄" },
+    { "legalItem": "返戻金制度の有無", "dbColumn": "refundSystem", "outputField": "返戻金制度" },
+    { "legalItem": "受理の経路", "dbColumn": "source", "outputField": "受理経路" },
+    { "legalItem": "求人の状態", "dbColumn": "status", "outputField": "求人状況" },
+    { "legalItem": "帳簿の保存期限（完結の日から2年）", "dbColumn": "retentionUntil", "outputField": "保存期限" }
+  ]
+}

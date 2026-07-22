@@ -1,0 +1,17 @@
+{
+  "docType": "job_order_referral",
+  "docTypeLabel": "紹介欄（帳簿①②共通） / Referral columns shared by Ledgers #1/#2 / Kolom rujukan yang dibagikan Buku Besar #1/#2",
+  "table": "jobOrderReferrals",
+  "legalBasis": "職業安定法施行規則 第17条の2 記載要領（紹介欄）",
+  "items": [
+    { "legalItem": "紹介日", "dbColumn": "referredAt", "outputField": "紹介日" },
+    { "legalItem": "採否", "dbColumn": "outcome", "outputField": "採否" },
+    { "legalItem": "採用日", "dbColumn": "hiredAt", "outputField": "採用日" },
+    { "legalItem": "無期雇用区分", "dbColumn": "indefiniteEmployment", "outputField": "無期雇用区分" },
+    { "legalItem": "転職勧奨禁止期間（採用日から2年）", "dbColumn": "noPoachingUntil", "outputField": "転職勧奨禁止期間" },
+    { "legalItem": "6か月以内離職の調査日", "dbColumn": "earlyLeaveCheckAt", "outputField": "早期離職調査日" },
+    { "legalItem": "6か月以内離職の調査方法", "dbColumn": "earlyLeaveCheckMethod", "outputField": "早期離職調査方法" },
+    { "legalItem": "6か月以内離職の調査結果", "dbColumn": "earlyLeaveCheckResult", "outputField": "早期離職調査結果" },
+    { "legalItem": "紹介区分（紹介予定派遣/純粋紹介/直接）", "dbColumn": "type", "outputField": "紹介区分" }
+  ]
+}

@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: assen-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: assen
+      POSTGRES_PASSWORD: assen_local_dev_only
+      POSTGRES_DB: assen
+    ports:
+      - "55432:5432"
+    volumes:
+      - assen_postgres_data:/var/lib/postgresql/data
+      # initdb.d配下は「データディレクトリが空の初回起動時のみ」実行される。既存ボリュームがある場合は
+      # 手動でCREATE ROLEするか、ボリュームを作り直す必要がある（README.md「ローカル開発ロールとRLS」参照）
+      # Files under initdb.d only run on the first startup with an empty data directory. If a volume already
+      # exists, create the role manually or recreate the volume (see README.md "Local dev role & RLS")
+      # File di bawah initdb.d hanya berjalan pada startup pertama dengan direktori data kosong. Jika volume
+      # sudah ada, buat role secara manual atau buat ulang volume (lihat README.md "Role dev lokal & RLS")
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U assen -d assen"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: assen-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: assen
+      MINIO_ROOT_PASSWORD: assen_local_dev_only
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - assen_minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  assen_postgres_data:
+  assen_minio_data:

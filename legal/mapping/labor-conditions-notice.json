@@ -1,0 +1,28 @@
+{
+  "docType": "labor_conditions_notice",
+  "docTypeLabel": "労働条件通知書（派遣） / Written notice of working conditions (dispatch) / Pemberitahuan tertulis kondisi kerja (dispatch)",
+  "table": "dispatchAssignments",
+  "jsonColumn": "conditionsTyped",
+  "zodSchemaModule": "src/domain/labor-conditions-notice.ts",
+  "zodSchemaExport": "laborConditionsNoticeSchema",
+  "legalBasis": "労働基準法第15条・労働基準法施行規則第5条、労働者派遣法第34条",
+  "items": [
+    { "legalItem": "労働契約の期間", "dbColumn": "conditionsTyped.contractPeriod", "outputField": "契約期間" },
+    { "legalItem": "就業の場所", "dbColumn": "conditionsTyped.workplace", "outputField": "就業場所" },
+    { "legalItem": "従事すべき業務の内容", "dbColumn": "conditionsTyped.jobDuties", "outputField": "業務内容" },
+    { "legalItem": "始業の時刻", "dbColumn": "conditionsTyped.workHoursStart", "outputField": "始業時刻" },
+    { "legalItem": "終業の時刻", "dbColumn": "conditionsTyped.workHoursEnd", "outputField": "終業時刻" },
+    { "legalItem": "休憩時間", "dbColumn": "conditionsTyped.breakTime", "outputField": "休憩時間" },
+    { "legalItem": "休日", "dbColumn": "conditionsTyped.daysOff", "outputField": "休日" },
+    { "legalItem": "休暇", "dbColumn": "conditionsTyped.leaveEntitlement", "outputField": "休暇" },
+    { "legalItem": "賃金の決定・計算・支払方法", "dbColumn": "conditionsTyped.wageDeterminationMethod", "outputField": "賃金決定方法" },
+    { "legalItem": "賃金の締切・支払の時期", "dbColumn": "conditionsTyped.wagePayDate", "outputField": "賃金支払日" },
+    { "legalItem": "退職に関する事項（解雇の事由を含む）", "dbColumn": "conditionsTyped.resignationTerms", "outputField": "退職・解雇事項" },
+    { "legalItem": "昇給に関する事項（任意記載）", "dbColumn": "conditionsTyped.payRaiseTerms", "outputField": "昇給事項", "optional": true },
+    { "legalItem": "派遣先事業所の名称", "dbColumn": "conditionsTyped.clientEstablishmentName", "outputField": "派遣先名称" },
+    { "legalItem": "派遣期間", "dbColumn": "conditionsTyped.dispatchPeriod", "outputField": "派遣期間" },
+    { "legalItem": "組織単位", "dbColumn": "conditionsTyped.orgUnit", "outputField": "組織単位" },
+    { "legalItem": "紹介予定派遣である旨の明示（T2Pの場合）", "dbColumn": "conditionsTyped.t2pDisclosure", "outputField": "紹介予定派遣明示", "optional": true }
+  ],
+  "notes": "設計書§1の「T2P一式④〜⑩」の④の具体的な項目定義は、紹介予定派遣_実務フローv1（本ワークスペース未配置）を確認の上、別途mapping JSONを追加すること。本ファイルはM1スコープの労働条件通知書のみを対象とする。 / The concrete item definition for '④' in design §1's 'T2P bundle ④–⑩' should be added as a separate mapping JSON once 紹介予定派遣_実務フローv1 (not present in this workspace) is reviewed. This file covers only the M1-scope working-conditions notice. / Definisi item konkret untuk '④' pada 'paket T2P ④–⑩' di desain §1 harus ditambahkan sebagai JSON mapping terpisah setelah 紹介予定派遣_実務フローv1 (tidak ada di workspace ini) ditinjau. File ini hanya mencakup pemberitahuan kondisi kerja lingkup M1."
+}

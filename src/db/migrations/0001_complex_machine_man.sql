@@ -1,0 +1,2 @@
+ALTER TABLE "approval_requests" ADD COLUMN "document_id" uuid NOT NULL;--> statement-breakpoint
+ALTER TABLE "approval_requests" ADD CONSTRAINT "approval_requests_document_id_documents_id_fk" FOREIGN KEY ("document_id") REFERENCES "public"."documents"("id") ON DELETE no action ON UPDATE no action;
