@@ -108,7 +108,7 @@ AssenはStreamable HTTP transport（`/mcp`）で待ち受けます。**接続方
 
 **接続手順（実際に動作確認済み）**：
 
-1. リポジトリの`apps/compliance`で`pnpm run auth:get-token`を実行する（初回のみ以下の環境変数が必要。値は壁に確認）：
+1. リポジトリのルートで`pnpm run auth:get-token`を実行する（初回のみ以下の環境変数が必要。値は壁に確認）：
    ```bash
    export GOOGLE_OAUTH_CLIENT_ID="000000000000-REDACTED.apps.googleusercontent.com"
    export GOOGLE_OAUTH_CLIENT_SECRET="<壁に確認>"

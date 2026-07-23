@@ -1,0 +1,154 @@
+# CI：lint/typecheck/test（Postgres+MinIOを使う統合テストを含む）とDockerビルドの検証を行う。
+# 元はaiosモノレポ内のapps/compliance/専用ワークフロー（compliance-ci.yml）だったものを、
+# 独立リポジトリ化（README.md「独立リポジトリ化」節参照）に合わせてリポジトリルート直下へ配置し直したもの
+#
+# CI: runs lint/typecheck/test (including integration tests against Postgres+MinIO) and verifies the Docker build.
+# Adapted from apps/compliance/'s dedicated workflow (compliance-ci.yml) inside the aios monorepo, relocated to the
+# repository root as part of extracting this project into its own standalone repository (see the "Extraction to a
+# standalone repository" section in README.md)
+#
+# CI: menjalankan lint/typecheck/test (termasuk integration test terhadap Postgres+MinIO) dan memverifikasi build
+# Docker. Diadaptasi dari workflow khusus apps/compliance/ (compliance-ci.yml) di dalam monorepo aios, dipindahkan ke
+# root repositori sebagai bagian dari ekstraksi proyek ini menjadi repositori mandiri (lihat bagian "Ekstraksi ke
+# repositori mandiri" di README.md)
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: lint / typecheck / test
+    runs-on: ubuntu-latest
+
+    # PostgresはGitHub Actionsのservice機能で起動（デフォルトCMDのままヘルスチェック可能）
+    # Postgres is started via GitHub Actions' service feature (its default CMD works fine with a health check)
+    # Postgres dijalankan via fitur service GitHub Actions (CMD default-nya cocok dengan health check)
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: assen
+          POSTGRES_PASSWORD: assen_ci_only
+          POSTGRES_DB: assen
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U assen -d assen"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    # DATABASE_URL: assen_app（非superuser・RLSバイパスなし）で接続し、RLSが実効性を持つことをCIで検証する。
+    # MIGRATION_DATABASE_URL: assen（superuser、Actions serviceのデフォルトロール）でマイグレーション/GRANTを適用する
+    # DATABASE_URL: connects as assen_app (non-superuser, no RLS bypass) so CI genuinely exercises RLS.
+    # MIGRATION_DATABASE_URL: assen (superuser, the Actions service's default role) applies migrations/GRANTs
+    # DATABASE_URL: terhubung sebagai assen_app (bukan superuser, tanpa bypass RLS) sehingga CI benar-benar menguji RLS.
+    # MIGRATION_DATABASE_URL: assen (superuser, role default service Actions) menerapkan migrasi/GRANT
+    env:
+      DATABASE_URL: postgres://assen_app:assen_app_ci_only@localhost:5432/assen
+      MIGRATION_DATABASE_URL: postgres://assen:assen_ci_only@localhost:5432/assen
+      STORAGE_ENDPOINT: http://localhost:9000
+      STORAGE_ACCESS_KEY: assen
+      STORAGE_SECRET_KEY: assen_ci_only_secret
+      STORAGE_BUCKET: assen-documents
+      PORT: 8080
+      AUTH_MODE: local_fixed_token
+      AUTH_LOCAL_TOKEN: ci-local-token
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "10.33.0"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: 依存関係のインストール / Install dependencies / Instal dependency
+        run: pnpm install --frozen-lockfile
+
+      # MinIOはCMDへの引数(`server /data`)が必要でActions serviceのcommand上書きに対応していないため、docker runで直接起動する
+      # MinIO needs CMD args (`server /data`) that Actions services can't override, so it is started directly with docker run
+      # MinIO membutuhkan argumen CMD (`server /data`) yang tidak bisa di-override oleh Actions service, jadi dijalankan langsung dengan docker run
+      - name: MinIOを起動 / Start MinIO / Jalankan MinIO
+        run: |
+          docker run -d --name assen-ci-minio \
+            -p 9000:9000 \
+            -e MINIO_ROOT_USER=assen \
+            -e MINIO_ROOT_PASSWORD=assen_ci_only_secret \
+            minio/minio server /data
+          for i in $(seq 1 20); do
+            if curl -sf http://localhost:9000/minio/health/live > /dev/null; then
+              echo "MinIO is ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "MinIO did not become ready in time" >&2
+          docker logs assen-ci-minio
+          exit 1
+
+      # CIごとに使い捨てのPII_ENCRYPTION_KEYをその場で生成する（コードやリポジトリに固定値を置かない）
+      # Generates a disposable PII_ENCRYPTION_KEY per run on the fly (never a fixed value committed to the repo)
+      # Menghasilkan PII_ENCRYPTION_KEY sekali pakai secara langsung per run (tidak pernah nilai tetap yang di-commit ke repo)
+      - name: PII_ENCRYPTION_KEYを生成 / Generate PII_ENCRYPTION_KEY / Hasilkan PII_ENCRYPTION_KEY
+        run: echo "PII_ENCRYPTION_KEY=$(openssl rand -base64 32)" >> "$GITHUB_ENV"
+
+      # ローカルのdocker-compose(docker/initdb/01-create-runtime-role.sql)と同じロールをCIのPostgresにも作成する。
+      # superuser(assen)で実行し、以降のmigrate/GRANTはmigrate.tsがMIGRATION_DATABASE_URL経由で行う
+      # Creates the same role as the local docker-compose setup (docker/initdb/01-create-runtime-role.sql) in CI's Postgres.
+      # Run as superuser (assen); migrate.ts then applies migrations/GRANTs via MIGRATION_DATABASE_URL
+      # Membuat role yang sama seperti setup docker-compose lokal (docker/initdb/01-create-runtime-role.sql) di Postgres CI.
+      # Dijalankan sebagai superuser (assen); migrate.ts kemudian menerapkan migrasi/GRANT via MIGRATION_DATABASE_URL
+      - name: assen_appロールを作成 / Create the assen_app role / Buat role assen_app
+        env:
+          PGPASSWORD: assen_ci_only
+        run: |
+          psql -h localhost -U assen -d assen -c \
+            "create role assen_app with login password 'assen_app_ci_only' nosuperuser nobypassrls noreplication;"
+
+      - name: 型チェック / Typecheck / Pemeriksaan tipe
+        run: pnpm run typecheck
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: マイグレーション適用 / Apply migrations / Terapkan migrasi
+        run: pnpm run db:migrate
+
+      - name: テスト / Test / Uji
+        run: pnpm run test
+
+      - name: 法定項目マッピングの機械検査 / Legal-mapping check / Pemeriksaan mapping hukum
+        run: pnpm run legal:check-mapping
+
+      - name: auditハッシュチェーン検証 / Audit hash-chain verification / Verifikasi rantai hash audit
+        run: pnpm run audit:verify
+
+      - name: ビルド / Build / Build
+        run: pnpm run build
+
+      - name: MinIOを停止 / Stop MinIO / Hentikan MinIO
+        if: always()
+        run: docker rm -f assen-ci-minio || true
+
+  docker-build:
+    name: Docker build (runtime / migrator / outbox-worker)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: runtimeイメージのビルド確認 / Verify the runtime image builds / Verifikasi image runtime bisa dibangun
+        run: docker build --target runtime -t assen-ci:runtime .
+
+      - name: migratorイメージのビルド確認 / Verify the migrator image builds / Verifikasi image migrator bisa dibangun
+        run: docker build --target migrator -t assen-ci:migrator .
+
+      - name: outbox-workerイメージのビルド確認 / Verify the outbox-worker image builds / Verifikasi image outbox-worker bisa dibangun
+        run: docker build --target outbox-worker -t assen-ci:outbox-worker .

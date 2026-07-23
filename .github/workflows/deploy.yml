@@ -1,0 +1,176 @@
+# Deploy：既に構築済みのCloud Run（runtime/migrator/outbox-worker）へイメージを配ってrevisionを更新する。
+# 実際のリソース作成手順（Cloud SQL/GCS/Artifact Registry/Secret Manager/初回のgcloud run deploy）はこのワークフローの
+# 対象外で、docs/ops-runbook.mdに記載した手順を壁が権限確認の上で手動実行する。
+# プロジェクトID・WIFプロバイダ・サービスアカウントはこのYAMLへ直書きせず、リポジトリのSecrets
+# （GCP_PROJECT_ID／WIF_PROVIDER／WIF_SERVICE_ACCOUNT）から読む。WIF自体の安全性はこれらの値の秘匿性に依存しないが、
+# 公開リポジトリでの偵察面を減らすための対応
+#
+# Deploy: ships images to already-provisioned Cloud Run resources (runtime/migrator/outbox-worker) and updates their
+# revisions. Actual resource provisioning (Cloud SQL/GCS/Artifact Registry/Secret Manager/the first `gcloud run
+# deploy`) is out of scope for this workflow and is documented as manual steps in docs/ops-runbook.md, to be run by
+# 壁 after confirming access.
+# The project ID, WIF provider, and service account are never hardcoded in this YAML; they are read from repository
+# Secrets (GCP_PROJECT_ID / WIF_PROVIDER / WIF_SERVICE_ACCOUNT) instead. WIF's own security does not depend on the
+# secrecy of these values, but keeping them out of a public repo reduces reconnaissance surface
+#
+# Deploy: mengirim image ke resource Cloud Run yang sudah disediakan (runtime/migrator/outbox-worker) dan
+# memperbarui revisinya. Provisioning resource sebenarnya (Cloud SQL/GCS/Artifact Registry/Secret Manager/`gcloud
+# run deploy` pertama) di luar cakupan workflow ini dan didokumentasikan sebagai langkah manual di
+# docs/ops-runbook.md, untuk dijalankan oleh 壁 setelah memastikan akses.
+# Project ID, WIF provider, dan service account tidak pernah di-hardcode di YAML ini; nilainya dibaca dari Secrets
+# repositori (GCP_PROJECT_ID / WIF_PROVIDER / WIF_SERVICE_ACCOUNT). Keamanan WIF sendiri tidak bergantung pada
+# kerahasiaan nilai-nilai ini, tetapi menjauhkannya dari repositori publik mengurangi permukaan pengintaian
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+  workflow_dispatch:
+    inputs:
+      run_migration:
+        description: "db:migrateジョブを実行する / run the db:migrate job"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  REGION: asia-northeast1
+
+jobs:
+  # --------------------------------------------------------------------------
+  # Build & Push（runtime / migrator / outbox-worker の3イメージ）
+  # --------------------------------------------------------------------------
+  build:
+    name: Build & Push
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [runtime, migrator, outbox-worker]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+          token_format: access_token
+
+      - name: Login to Artifact Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGION }}-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          target: ${{ matrix.target }}
+          push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: |
+            ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/assen/${{ matrix.target }}:${{ github.sha }}
+            ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/assen/${{ matrix.target }}:latest
+
+  # --------------------------------------------------------------------------
+  # Migrate（db:migrate専用のCloud Run Jobを実行し、完了を待つ）
+  # environmentによる承認ゲートは、GitHub repo設定でassen-internal environmentに
+  # required reviewersを設定することで有効化する（docs/ops-runbook.md参照）。未設定の場合はゲートなしで進む
+  # --------------------------------------------------------------------------
+  migrate:
+    name: Migrate DB
+    needs: build
+    if: github.event_name == 'push' || github.event.inputs.run_migration == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: assen-internal
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: assen-migratorジョブのイメージを更新し実行を待つ / Update the assen-migrator job's image and wait for the run
+        run: |
+          gcloud run jobs update assen-migrator \
+            --project="${{ secrets.GCP_PROJECT_ID }}" \
+            --region="${{ env.REGION }}" \
+            --image="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/assen/migrator:${{ github.sha }}"
+          gcloud run jobs execute assen-migrator \
+            --project="${{ secrets.GCP_PROJECT_ID }}" \
+            --region="${{ env.REGION }}" \
+            --wait
+
+  # --------------------------------------------------------------------------
+  # Deploy runtime（MCPサーバー本体。認証はアプリ層のOAuthトークン交換に一本化。§ops-runbook.md 8節参照）
+  # --------------------------------------------------------------------------
+  deploy-runtime:
+    name: Deploy runtime service
+    needs: migrate
+    runs-on: ubuntu-latest
+    environment:
+      name: assen-internal
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: assen-runtime
+          region: ${{ env.REGION }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          image: ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/assen/runtime:${{ github.sha }}
+          no_traffic: false
+
+  # --------------------------------------------------------------------------
+  # Deploy outbox-worker（常駐pollerはCloud Run Servicesではなく公式のWorker Poolsで運用する）
+  # --------------------------------------------------------------------------
+  deploy-outbox-worker:
+    name: Deploy outbox-worker pool
+    needs: migrate
+    runs-on: ubuntu-latest
+    environment:
+      name: assen-internal
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: assen-outbox-worker Worker Poolのイメージを更新 / Update the assen-outbox-worker worker pool's image
+        run: |
+          gcloud run worker-pools deploy assen-outbox-worker \
+            --project="${{ secrets.GCP_PROJECT_ID }}" \
+            --region="${{ env.REGION }}" \
+            --image="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/assen/outbox-worker:${{ github.sha }}" \
+            --quiet

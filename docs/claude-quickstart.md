@@ -8,7 +8,7 @@
 
 ## 0. 初回だけ必要なもの / One-time setup / Persiapan satu kali
 
-- このリポジトリ（`aios`）がローカルにclone済みで、`apps/compliance`で`pnpm install`済みであること
+- このリポジトリ（`assen`）がローカルにclone済みで、`pnpm install`済みであること
 - Node.js 20以上・`pnpm`が使えること
 - `GOOGLE_OAUTH_CLIENT_SECRET`の値（壁に確認してください。Slack等の平文には貼らないこと）
 - 自分のGoogle Workspaceメールアドレス（`admin@example.co.jp`形式）が`TOKEN_EXCHANGE_ALLOWLIST_JSON`（社内allowlist）に登録済みであること。未登録の場合は壁に依頼してください
@@ -17,10 +17,10 @@
 
 ## 1. Assenアクセストークンを取得する / Step 1: get an Assen access token / Langkah 1: dapatkan access token Assen
 
-ターミナルで`apps/compliance`ディレクトリに移動し、以下を実行します：
+ターミナルでこのリポジトリのルートに移動し、以下を実行します：
 
 ```bash
-cd aios/apps/compliance
+cd assen
 export GOOGLE_OAUTH_CLIENT_ID="000000000000-REDACTED.apps.googleusercontent.com"
 export GOOGLE_OAUTH_CLIENT_SECRET="<壁に確認した値>"
 export ASSEN_BASE_URL="https://assen-runtime-000000000000.asia-northeast1.run.app"
