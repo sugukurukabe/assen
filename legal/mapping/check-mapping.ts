@@ -11,7 +11,6 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getTableColumns } from "drizzle-orm";
 import * as schema from "../../src/db/schema/index.js";
-import { laborConditionsNoticeFieldKeys } from "../../src/domain/labor-conditions-notice.js";
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 
@@ -27,6 +26,8 @@ interface MappingFile {
   docTypeLabel: string;
   table: string;
   jsonColumn?: string;
+  zodSchemaModule?: string;
+  zodSchemaExport?: string;
   items: MappingItem[];
 }
 
@@ -50,19 +51,49 @@ function checkFlatColumn(tableColumns: Record<string, unknown>, dbColumn: string
   return problems;
 }
 
-function checkJsonColumnPath(dbColumn: string, jsonColumn: string): string[] {
+/**
+ * mapping JSONのzodSchemaModule/zodSchemaExportから、対応するdocType固有の`*FieldKeys`配列を動的に解決する
+ * （命名規約: `fooSchema` → `fooFieldKeys`。各domain schemaファイルがこの規約でexportしている）
+ *
+ * Dynamically resolves the docType-specific `*FieldKeys` array from the mapping JSON's
+ * zodSchemaModule/zodSchemaExport (naming convention: `fooSchema` -> `fooFieldKeys`, exported by
+ * every domain schema file under this convention)
+ *
+ * Menyelesaikan array `*FieldKeys` khusus docType secara dinamis dari zodSchemaModule/zodSchemaExport
+ * mapping JSON (konvensi penamaan: `fooSchema` -> `fooFieldKeys`, diekspor oleh setiap file skema
+ * domain dengan konvensi ini)
+ */
+async function resolveFieldKeys(mapping: MappingFile): Promise<string[]> {
+  if (!mapping.zodSchemaModule || !mapping.zodSchemaExport) {
+    throw new Error(
+      `${mapping.docType}: jsonColumnを使うmappingにはzodSchemaModule/zodSchemaExportが必須です / zodSchemaModule/zodSchemaExport are required when jsonColumn is set`,
+    );
+  }
+  const fieldKeysExport = mapping.zodSchemaExport.replace(/Schema$/, "FieldKeys");
+  const modulePath = mapping.zodSchemaModule.replace(/^src\//, "../../src/").replace(/\.ts$/, ".js");
+  const importedModule = (await import(modulePath)) as Record<string, unknown>;
+  const fieldKeys = importedModule[fieldKeysExport];
+  if (!Array.isArray(fieldKeys)) {
+    throw new Error(
+      `${mapping.zodSchemaModule} に ${fieldKeysExport} のexportがありません / ${mapping.zodSchemaModule} does not export ${fieldKeysExport}`,
+    );
+  }
+  return fieldKeys as string[];
+}
+
+function checkJsonColumnPath(dbColumn: string, jsonColumn: string, fieldKeys: string[], fieldKeysLabel: string): string[] {
   const [prefix, ...rest] = dbColumn.split(".");
   if (prefix !== jsonColumn || rest.length !== 1) {
     return [`dbColumn ${dbColumn} は ${jsonColumn}.<field> 形式である必要があります / dbColumn ${dbColumn} must be in ${jsonColumn}.<field> form`];
   }
   const field = rest[0]!;
-  if (!laborConditionsNoticeFieldKeys.includes(field)) {
-    return [`labor-conditions-notice スキーマに ${field} が存在しません / field ${field} is missing from the labor-conditions-notice schema`];
+  if (!fieldKeys.includes(field)) {
+    return [`${fieldKeysLabel} スキーマに ${field} が存在しません / field ${field} is missing from the ${fieldKeysLabel} schema`];
   }
   return [];
 }
 
-function checkMappingFile(fileName: string): { fileName: string; docType: string; itemCount: number; problems: string[] } {
+async function checkMappingFile(fileName: string): Promise<{ fileName: string; docType: string; itemCount: number; problems: string[] }> {
   const raw = readFileSync(join(currentDir, fileName), "utf8");
   const mapping = JSON.parse(raw) as MappingFile;
   const problems: string[] = [];
@@ -72,6 +103,8 @@ function checkMappingFile(fileName: string): { fileName: string; docType: string
   }
 
   const tableColumns = resolveTable(mapping.table);
+  const fieldKeys = mapping.jsonColumn ? await resolveFieldKeys(mapping) : [];
+  const fieldKeysLabel = mapping.zodSchemaExport ?? mapping.jsonColumn ?? "";
 
   for (const item of mapping.items) {
     if (!item.legalItem || !item.outputField) {
@@ -79,7 +112,7 @@ function checkMappingFile(fileName: string): { fileName: string; docType: string
       continue;
     }
     if (mapping.jsonColumn && item.dbColumn.startsWith(`${mapping.jsonColumn}.`)) {
-      problems.push(...checkJsonColumnPath(item.dbColumn, mapping.jsonColumn));
+      problems.push(...checkJsonColumnPath(item.dbColumn, mapping.jsonColumn, fieldKeys, fieldKeysLabel));
     } else {
       problems.push(...checkFlatColumn(tableColumns, item.dbColumn));
     }
@@ -88,7 +121,7 @@ function checkMappingFile(fileName: string): { fileName: string; docType: string
   return { fileName, docType: mapping.docType, itemCount: mapping.items.length, problems };
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const mappingFiles = readdirSync(currentDir).filter((file) => file.endsWith(".json"));
   if (mappingFiles.length === 0) {
     console.error("mapping JSONが見つかりません / No mapping JSON files found");
@@ -98,7 +131,7 @@ function main(): void {
 
   let totalProblems = 0;
   for (const fileName of mappingFiles) {
-    const result = checkMappingFile(fileName);
+    const result = await checkMappingFile(fileName);
     const status = result.problems.length === 0 ? "OK" : "FAIL";
     console.error(`[${status}] ${result.fileName} (${result.docType}) — ${result.itemCount}項目`);
     for (const problem of result.problems) {

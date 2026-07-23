@@ -2,53 +2,47 @@
  * outbox workerのCLIエントリポイント。cross-tenantのポーリングループを起動し、SIGTERM/SIGINTで
  * グレースフルシャットダウンする（server.tsと同じ方針）
  *
- * 【重要】M1時点ではeventTypeごとの実handlerが1つも登録されていない（GCS/Slack/freee連携はM2以降）。
- * このまま実行すると、既存のM1向けイベント（document.draft_generated等。冪等性チェック目的のみで
- * 外部反映は不要）が「no handler registered」で即dead判定される。dead判定はidempotencyの正しさには
- * 影響しないが、監視上のノイズになるため、M2で実handlerを登録するまでは本番スケジューラ（Cloud Run Jobs等）
- * への定期実行登録を行わないこと。詳細は docs/registry-readiness-checklist.md 参照
+ * 【自社MVPゲート時点の状況（docs/registry-readiness-checklist.md G節）】
+ * 文書バイト本体のGCS/MinIOへの保存はgenerate-draft.ts／attach-executed-copy.tsが
+ * putImmutableObject経由で既に同期的に行っており、outbox handlerとしての追加実装は不要（正本は既にGCS/MinIOにある）。
+ * outboxで実際に必要なのは非同期の通知（Slack）のみだったため、document.approval_requestedに
+ * notifySlackOnApprovalRequestedを登録した。それ以外のeventType（document.draft_generated・
+ * dispatch_assignment.confirmed等）は現時点で外部反映不要（冪等性チェック目的のみ）のため、
+ * handler未登録のまま「no handler registered」でdeadになる（dead-letterの監視は運用ランブック参照）。
+ * freee連携（invoice.create_draft等）はMVP外（下記checklist E節）のため登録しない
  *
  * CLI entrypoint for the outbox worker. Starts the cross-tenant polling loop and shuts down gracefully on
  * SIGTERM/SIGINT (same policy as server.ts).
  *
- * IMPORTANT: As of M1, no real per-eventType handler is registered yet (GCS/Slack/freee integrations land in
- * M2+). Running this as-is will immediately dead-letter the existing M1 events (e.g. document.draft_generated,
- * which exist only for idempotency bookkeeping and need no external side effect). Dead-lettering does not affect
- * idempotency correctness, but it is monitoring noise — do not wire this into a production scheduler (Cloud Run
- * Jobs, etc.) until M2 registers real handlers. See docs/registry-readiness-checklist.md
+ * As of the internal-MVP gate (docs/registry-readiness-checklist.md section G): the document bytes themselves are
+ * already stored to GCS/MinIO synchronously by generate-draft.ts / attach-executed-copy.ts via putImmutableObject,
+ * so no outbox handler is needed for that (the artifact of record already lives in GCS/MinIO). The only thing the
+ * outbox genuinely needed was an async notification (Slack), so notifySlackOnApprovalRequested is registered for
+ * document.approval_requested. Other eventTypes (document.draft_generated, dispatch_assignment.confirmed, etc.)
+ * currently need no external side effect (they exist only for idempotency bookkeeping) and are intentionally left
+ * unregistered, so they dead-letter with "no handler registered" (see the ops runbook for dead-letter monitoring).
+ * freee integration (invoice.create_draft, etc.) is out of MVP scope (checklist section E) and is not registered
  *
  * Entrypoint CLI untuk outbox worker. Memulai loop polling cross-tenant dan shutdown secara graceful saat
  * SIGTERM/SIGINT (kebijakan yang sama dengan server.ts).
- *
- * PENTING: Pada M1, belum ada handler nyata per eventType yang terdaftar (integrasi GCS/Slack/freee baru masuk
- * di M2+). Menjalankan ini apa adanya akan langsung men-dead-letter event M1 yang ada (misalnya
- * document.draft_generated, yang hanya ada untuk pembukuan idempotensi dan tidak memerlukan efek samping
- * eksternal). Dead-lettering tidak memengaruhi kebenaran idempotensi, tetapi menjadi noise monitoring — jangan
- * hubungkan ini ke scheduler produksi (Cloud Run Jobs, dll.) sampai M2 mendaftarkan handler nyata. Lihat
- * docs/registry-readiness-checklist.md
  */
 import { db, getPool } from "../../db/client.js";
 import { logMessage } from "../../lib/logger.js";
+import { notifySlackOnApprovalRequested } from "./handlers/slack-approval-notifier.js";
 import type { OutboxHandler } from "./worker.js";
 import { processOutboxBatchForAllTenants } from "./worker.js";
 
 const POLL_INTERVAL_MS = 2000;
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 
-// M2でGCS/Slack/freee連携のhandlerをここへ追加登録する（eventType文字列は各serviceのenqueueOutboxEvent呼び出しを参照）
-// M2 will register GCS/Slack/freee integration handlers here (see each service's enqueueOutboxEvent call for eventType strings)
-// M2 akan mendaftarkan handler integrasi GCS/Slack/freee di sini (lihat panggilan enqueueOutboxEvent tiap service untuk string eventType)
-const handlers: Record<string, OutboxHandler> = {};
+const handlers: Record<string, OutboxHandler> = {
+  "document.approval_requested": notifySlackOnApprovalRequested,
+};
 
 async function main(): Promise<void> {
-  if (Object.keys(handlers).length === 0) {
-    logMessage(
-      "warning",
-      "handlerが1つも登録されていません。既存のoutboxイベントは即座にdead判定されます。M2でhandlerを登録するまで本番スケジューラに接続しないこと / No handlers are registered; existing outbox events will be dead-lettered immediately. Do not connect this to a production scheduler until M2 registers handlers",
-    );
-  }
-
-  logMessage("info", "outbox workerを起動しました / outbox worker started");
+  logMessage("info", "outbox workerを起動しました / outbox worker started", {
+    registeredEventTypes: Object.keys(handlers),
+  });
 
   // shouldStopをループ内でポーリングすることで、setTimeout待機中でもSIGTERM/SIGINTを速やかに反映できる
   // Polling shouldStop inside the loop lets SIGTERM/SIGINT take effect promptly even while awaiting the interval sleep

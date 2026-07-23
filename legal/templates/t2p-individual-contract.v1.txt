@@ -1,0 +1,105 @@
+労働者派遣個別契約書（紹介予定派遣）
+Worker Dispatch Individual Contract (Temp-to-Perm Dispatch)
+Kontrak Dispatch Tenaga Kerja Individual (Dispatch Konversi ke Kerja Langsung)
+====================================================
+
+契約書番号 / Contract number / Nomor kontrak: {{contractNumber}}
+締結日 / Contract date / Tanggal kontrak: {{contractDate}}
+基本契約締結日 / Master agreement date / Tanggal perjanjian dasar: {{basicContractDate}}
+派遣先の氏名又は名称（甲） / Client name / Nama klien: {{clientName}}
+
+第1表　就業条件 / Table 1: Terms of dispatch employment / Tabel 1: Ketentuan kerja dispatch
+
+Ⅰ 派遣業務に関する事項 / Dispatch duties / Tugas dispatch
+業務内容 / Job duties / Uraian tugas: {{jobDuties}}
+業務に伴う責任の程度 / Responsibility level / Tingkat tanggung jawab: {{responsibilityLevel}}
+
+Ⅱ 派遣就業場所に関する事項 / Work location / Lokasi kerja
+派遣先事業所の名称 / Client establishment name / Nama perusahaan klien: {{clientEstablishmentName}}
+派遣先事業所の所在地・電話番号 / Client establishment address/phone / Alamat/telepon perusahaan klien: {{clientEstablishmentAddress}}
+派遣就業場所 / Work location / Lokasi kerja: {{workplace}}
+派遣就業場所の所在地・電話番号 / Work location address/phone / Alamat/telepon lokasi kerja: {{workLocationAddress}}
+組織単位 / Org unit / Unit organisasi: {{orgUnit}}
+組織の長の職名（任意） / Org-unit head title (optional) / Jabatan kepala unit organisasi (opsional): {{orgUnitHeadTitle}}
+
+Ⅲ 指揮命令・責任体制 / Supervision and responsibility / Supervisi dan tanggung jawab
+指揮命令者 / Supervisor / Supervisor: {{supervisorInfo}}
+派遣先責任者（派遣法41条） / Client-side responsible person (Art. 41) / Penanggung jawab pihak klien (Pasal 41): {{clientResponsiblePersonInfo}}
+派遣元責任者（派遣法36条） / Agency-side responsible person (Art. 36) / Penanggung jawab pihak agen (Pasal 36): {{agencyResponsiblePersonInfo}}
+
+Ⅳ 派遣期間に関する事項 / Dispatch period / Periode dispatch
+派遣期間（自動更新の定めは不可。紹介予定派遣は同一労働者につき通算6ヶ月以内） / Dispatch period (no automatic renewal; max 6 months total per worker for T2P) / Periode dispatch (tidak ada perpanjangan otomatis; maks 6 bulan total per pekerja untuk T2P): {{dispatchPeriod}}
+
+Ⅴ 就業日・就業時間に関する事項 / Work days and hours / Hari dan jam kerja
+就業日 / Work days / Hari kerja: {{workDays}}
+就業時間 / Work hours / Jam kerja: {{workHoursStart}} - {{workHoursEnd}}
+休憩時間 / Break time / Waktu istirahat: {{breakTime}}
+時間外労働（三六協定の範囲内、任意） / Overtime terms (within Art.36 agreement, optional) / Ketentuan lembur (dalam perjanjian Pasal 36, opsional): {{overtimeTerms}}
+休日労働（任意） / Holiday-work terms (optional) / Ketentuan kerja hari libur (opsional): {{holidayWorkTerms}}
+
+Ⅵ 安全及び衛生 / Safety and health / Keselamatan dan kesehatan
+甲は、労働者派遣法第44条から第47条の4までの規定により課された各法令を遵守し、自己に課された法令上の責任を負う。派遣就業中の安全及び衛生については甲の安全衛生に関する規定を適用し、その他については乙の安全衛生に関する規定を適用する。
+The client (Party A) shall comply with the obligations imposed by Articles 44 through 47-4 of the Worker Dispatch Act and bear its own statutory responsibility. The client's safety/health rules apply during dispatch work; the agency's rules apply otherwise.
+Klien (Pihak A) harus mematuhi kewajiban yang ditetapkan oleh Pasal 44 hingga 47-4 UU Dispatch Tenaga Kerja dan menanggung tanggung jawab hukumnya sendiri. Aturan keselamatan/kesehatan klien berlaku selama kerja dispatch; aturan agen berlaku untuk hal lainnya.
+
+Ⅶ 派遣人員・派遣料金 / Headcount and fee / Jumlah tenaga kerja dan biaya
+派遣人員 / Headcount / Jumlah tenaga kerja: {{headcount}}
+派遣料金 / Fee amount / Jumlah biaya: {{feeAmount}}
+協定対象派遣労働者の限定の有無 / Agreement-based worker limitation / Batasan pekerja berbasis perjanjian: {{agreementBasedWorkerLimitation}}
+
+契約締結先 / Contracting parties / Pihak kontrak
+甲（派遣先）所在地 / Client address / Alamat klien: {{clientAddress}}
+甲（派遣先）代表者 / Client representative / Perwakilan klien: {{clientRepresentative}}
+
+第2表　紹介予定派遣に関する事項 / Table 2: Temp-to-perm dispatch matters / Tabel 2: Hal terkait dispatch konversi ke kerja langsung
+
+T-1（紹介予定派遣である旨） 本契約に基づく労働者派遣は紹介予定派遣であり、乙は、派遣労働者及び甲に対し、雇用関係の成立のあっせん（職業紹介）を行い、又は行うことを予定する。
+T-1 (Notice that this is temp-to-perm dispatch): The dispatch under this contract is temp-to-perm; the agency (Party B) performs or plans to perform job placement (referral) leading to an employment relationship between the worker and the client.
+T-1 (Pemberitahuan bahwa ini adalah dispatch konversi ke kerja langsung): Dispatch berdasarkan kontrak ini adalah T2P; agen (Pihak B) melakukan atau berencana melakukan penempatan kerja (rujukan) yang mengarah ke hubungan kerja antara pekerja dan klien.
+
+T-2（派遣受入期間の上限） 同一の派遣労働者に係る紹介予定派遣の期間は、通算して6ヶ月を超えないものとする。
+T-2 (Cap on the dispatch period): The total T2P dispatch period for the same worker shall not exceed six (6) months.
+T-2 (Batas periode dispatch): Total periode dispatch T2P untuk pekerja yang sama tidak boleh melebihi enam (6) bulan.
+
+T-3（求人条件の明示・意思確認・採用内定） 甲は、派遣就業開始前又は派遣期間中に、直接雇用に係る求人条件を明示することができる。乙は、派遣労働者の求職の意思を確認の上、職業紹介を行う。派遣期間中の採用内定を妨げない。
+T-3 (Disclosure of job-order conditions, confirmation of intent, conditional offer): The client may disclose direct-employment conditions before or during dispatch. The agency performs the referral after confirming the worker's job-seeking intent. A conditional offer during the dispatch period is not precluded.
+T-3 (Pengungkapan ketentuan lowongan, konfirmasi niat, tawaran bersyarat): Klien dapat mengungkapkan ketentuan kerja langsung sebelum atau selama dispatch. Agen melakukan rujukan setelah mengonfirmasi niat pekerja. Tawaran bersyarat selama periode dispatch tidak dikecualikan.
+
+T-4（直接雇用後の雇用形態・労働条件（見込み）） 別紙「求人条件明示書」のとおり。
+T-4 (Post-conversion employment type/terms (expected)): As stated in the attached "Job-Order Conditions Notice".
+T-4 (Jenis/ketentuan kerja pasca konversi (perkiraan)): Sebagaimana tercantum dalam lampiran "Pemberitahuan Ketentuan Lowongan".
+
+T-5（試用期間の禁止） 甲は、本件職業紹介により雇い入れる派遣労働者について、試用期間を設けない。
+T-5 (No probation period): The client shall not set a probation period for a worker hired through this referral.
+T-5 (Tanpa periode percobaan): Klien tidak akan menetapkan periode percobaan untuk pekerja yang dipekerjakan melalui rujukan ini.
+
+T-6（理由の明示） 甲が職業紹介を受けることを希望しない場合、又は職業紹介を受けた派遣労働者を雇用しない場合には、甲は、乙の求めに応じ、それぞれの理由を書面、ファクシミリ又は電子メールにより乙に明示する。
+T-6 (Disclosure of reasons): If the client declines the referral or does not hire a referred worker, the client shall, upon the agency's request, disclose the reason in writing, by fax, or by email.
+T-6 (Pengungkapan alasan): Jika klien menolak rujukan atau tidak mempekerjakan pekerja yang dirujuk, klien harus, atas permintaan agen, mengungkapkan alasannya secara tertulis, faks, atau email.
+
+T-7（紹介手数料） 1名につき金{{referralFeeRate}}円（税別）。届出制手数料の上限内で設定する。
+T-7 (Referral fee): {{referralFeeRate}} yen (excl. tax) per hire. Set within the filed fee cap.
+T-7 (Biaya rujukan): {{referralFeeRate}} yen (tanpa pajak) per perekrutan. Ditetapkan dalam batas biaya yang diajukan.
+
+T-8（特定技能外国人に関する特則） 派遣労働者が「特定技能」の在留資格を有する場合、直接雇用への転換には在留資格変更許可を要する。転換日は当該許可日とし、許可日まで本契約に基づく派遣就業を継続する（雇用に空白を生じさせない）。派遣期間満了時に許可が未了の場合は、甲乙協議の上、T-2の上限の範囲内で派遣期間を変更する契約を締結する。
+T-8 (Special clause for Specified Skilled Workers): If the worker holds "Specified Skilled Worker" residence status, conversion to direct employment requires a change-of-status permit. The conversion date is the permit-grant date; dispatch continues under this contract until then (no gap in employment). If the permit is still pending at contract expiry, the parties shall agree to amend the dispatch period within the T-2 cap.
+T-8 (Klausul khusus untuk Tenaga Kerja Terampil Khusus): Jika pekerja memiliki status tinggal "Tenaga Kerja Terampil Khusus", konversi ke kerja langsung memerlukan izin perubahan status. Tanggal konversi adalah tanggal izin diberikan; dispatch berlanjut berdasarkan kontrak ini hingga saat itu (tidak ada kekosongan kerja). Jika izin masih tertunda saat kontrak berakhir, para pihak akan menyetujui perubahan periode dispatch dalam batas T-2.
+
+T-9（管理台帳への記載） 甲は派遣先管理台帳に、乙は派遣元管理台帳に、それぞれ紹介予定派遣に関する事項を記載する。
+T-9 (Ledger entries): The client records T2P matters in its client-side ledger; the agency records them in its agency-side ledger.
+T-9 (Entri buku besar): Klien mencatat hal T2P di buku besar sisi klien; agen mencatat di buku besar sisi agen.
+
+T-10（返戻金・代替紹介） 紹介手数料には、乙の返戻金制度（入社後1ヶ月以内の自己都合退職50%・3ヶ月以内30%、税抜本体基準）及び代替紹介特約を適用する。詳細は「転換条件覚書」による。
+T-10 (Refund / replacement referral): The referral fee is subject to the agency's refund policy (50% for self-initiated resignation within 1 month of hire, 30% within 3 months, based on the pre-tax fee) and a replacement-referral clause. Details are set out in the "Conversion Terms Memo".
+T-10 (Pengembalian dana / rujukan pengganti): Biaya rujukan dikenakan kebijakan pengembalian dana agen (50% untuk pengunduran diri sendiri dalam 1 bulan sejak perekrutan, 30% dalam 3 bulan, berdasarkan biaya sebelum pajak) dan klausul rujukan pengganti. Rincian diatur dalam "Memo Ketentuan Konversi".
+
+本契約の成立を証するため、本書2通を作成し、甲乙記名押印の上、各1通を保有する。
+In witness of this contract, two copies are prepared, signed/sealed by both parties, with each party retaining one copy.
+Sebagai bukti kontrak ini, dua salinan disiapkan, ditandatangani/disegel oleh kedua pihak, masing-masing pihak menyimpan satu salinan.
+
+----------------------------------------------------
+本書類はAssen（法定書類自動化MCP）により生成されたドラフトです。内容を確認のうえ承認してください。第2表T-1〜T-10は案件ごとに変動しない固定的な法定文言のため静的テキストとして保持（T-7紹介手数料額のみ変動）。社労士・行政書士による法的レビュー未実施（docs/document-catalog.md参照）。
+This document is a draft generated by Assen. Please review and approve before use. Table 2 items T-1 to T-10 are fixed statutory boilerplate held as static text (only T-7 the fee amount varies per case). Not yet reviewed by a labor/immigration attorney (see docs/document-catalog.md).
+Dokumen ini adalah draf yang dihasilkan oleh Assen. Harap tinjau dan setujui sebelum digunakan. Item Tabel 2 T-1 hingga T-10 adalah boilerplate hukum tetap yang disimpan sebagai teks statis (hanya T-7 jumlah biaya yang berubah per kasus). Belum ditinjau oleh pengacara tenaga kerja/imigrasi (lihat docs/document-catalog.md).
+
+template_version: t2p-individual-contract.v1

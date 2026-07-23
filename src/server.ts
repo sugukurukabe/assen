@@ -12,7 +12,8 @@ import { assertProductionSafety, loadEnv, type AssenEnv } from "./lib/env.js";
 import { logMessage } from "./lib/logger.js";
 import { resolvePrincipal } from "./lib/auth.js";
 import { ensureBucketExists } from "./lib/storage.js";
-import { PayloadTooLargeError } from "./lib/errors.js";
+import { exchangeGoogleIdTokenForAssenToken, getTokenExchangeJwks } from "./lib/token-exchange.js";
+import { PayloadTooLargeError, UserInputError } from "./lib/errors.js";
 import { applyCorsHeaders, parseAllowedOrigins } from "./lib/cors.js";
 import { createAssenMcpServer } from "./protocol/mcp-factory.js";
 import { buildServerCard } from "./protocol/server-card.js";
@@ -97,6 +98,50 @@ async function handleMcpRequest(req: IncomingMessage, res: ServerResponse): Prom
 }
 
 /**
+ * document.approval_requestedのSlack通知等と同じく自社MVPゲート（docs/registry-readiness-checklist.md G節）の一部。
+ * Google IDトークンをAssen専用クレーム付きJWTへ交換する。トークン交換自体がログイン処理のためBearer認証は要求しない
+ * Part of the internal-MVP gate (checklist section G). Exchanges a Google ID token for a JWT carrying Assen's
+ * own claims. Does not require Bearer auth itself, since this endpoint IS the login flow
+ */
+async function handleTokenExchangeRequest(req: IncomingMessage, res: ServerResponse, env: AssenEnv): Promise<void> {
+  let body: unknown;
+  try {
+    body = await readJsonBody(req, env.MAX_REQUEST_BODY_BYTES);
+  } catch (error) {
+    if (error instanceof PayloadTooLargeError) {
+      res.writeHead(413, { "content-type": "application/json" });
+      res.end(JSON.stringify({ error: "payload_too_large" }));
+      return;
+    }
+    throw error;
+  }
+
+  const googleIdToken = (body as { google_id_token?: unknown } | undefined)?.google_id_token;
+  if (typeof googleIdToken !== "string" || googleIdToken.length === 0) {
+    res.writeHead(400, { "content-type": "application/json" });
+    res.end(JSON.stringify({ error: "google_id_token is required" }));
+    return;
+  }
+
+  try {
+    const result = await exchangeGoogleIdTokenForAssenToken(googleIdToken);
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ access_token: result.accessToken, token_type: result.tokenType, expires_in: result.expiresIn }));
+  } catch (error) {
+    if (error instanceof UserInputError) {
+      res.writeHead(400, { "content-type": "application/json" });
+      res.end(JSON.stringify({ error: error.message, remediation: error.remediation }));
+      return;
+    }
+    logMessage("error", "トークン交換に失敗しました / token exchange failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    res.writeHead(500, { "content-type": "application/json" });
+    res.end(JSON.stringify({ error: "internal_error" }));
+  }
+}
+
+/**
  * 実際にDBへ接続できるかを確認するreadiness probe（/healthは静的チェックのみ）
  * Readiness probe that verifies actual DB connectivity (/health is a static check only)
  * Readiness probe yang memverifikasi konektivitas DB aktual (/health hanya pengecekan statis)
@@ -163,6 +208,37 @@ export function createAssenHttpServer(env: AssenEnv): Server {
       const card = buildServerCard(`${protocol}://${host}`);
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify(card, null, 2));
+      return;
+    }
+
+    if (req.url === "/oauth/jwks.json") {
+      getTokenExchangeJwks()
+        .then((jwks) => {
+          res.writeHead(200, { "content-type": "application/json" });
+          res.end(JSON.stringify(jwks));
+        })
+        .catch((error: unknown) => {
+          logMessage("critical", "JWKS配信で予期しないエラー / unexpected error while serving JWKS", {
+            error: error instanceof Error ? error.message : String(error),
+          });
+          if (!res.headersSent) {
+            res.writeHead(500, { "content-type": "application/json" });
+            res.end(JSON.stringify({ error: "internal_error" }));
+          }
+        });
+      return;
+    }
+
+    if (req.url === "/oauth/token-exchange" && req.method === "POST") {
+      handleTokenExchangeRequest(req, res, env).catch((error: unknown) => {
+        logMessage("critical", "トークン交換ハンドラで予期しないエラー / unexpected error in the token-exchange handler", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        if (!res.headersSent) {
+          res.writeHead(500, { "content-type": "application/json" });
+          res.end(JSON.stringify({ error: "internal_error" }));
+        }
+      });
       return;
     }
 

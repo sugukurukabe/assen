@@ -23,7 +23,8 @@
     "audit:verify": "tsx src/audit/verify-chain.ts",
     "golden-prompts:run": "tsx test/golden-prompts/run-cli.ts",
     "db:backup": "scripts/db-backup.sh",
-    "db:restore-drill": "scripts/db-restore-drill.sh"
+    "db:restore-drill": "scripts/db-restore-drill.sh",
+    "auth:get-token": "tsx scripts/get-assen-token.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1092.0",

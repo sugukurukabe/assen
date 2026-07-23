@@ -1,0 +1,62 @@
+紹介予定派遣に関する説明書 兼 本人同意書
+Explanation & Consent Form for Temp-to-Perm Dispatch
+Formulir Penjelasan & Persetujuan untuk Dispatch Konversi ke Kerja Langsung
+====================================================
+
+1. 紹介予定派遣とは / What is temp-to-perm dispatch? / Apa itu dispatch konversi ke kerja langsung?
+紹介予定派遣とは、スグクル株式会社（派遣元）に雇用されたまま、受入企業で最長6ヶ月間、派遣スタッフとして働き、あなたと受入企業の双方が合意した場合に、受入企業に直接雇用される制度です。
+"Shokai Yotei Haken" (temp-to-perm dispatch) is a system in which you work at a client company as dispatched staff for up to six (6) months while remaining employed by Sugukuru Inc. (the dispatch agency). If both you and the client company agree, you will then be hired directly by the client company.
+"Shokai Yotei Haken" (dispatch konversi ke kerja langsung) adalah sistem di mana Anda bekerja di perusahaan klien sebagai staf dispatch selama maksimal enam (6) bulan sambil tetap dipekerjakan oleh Sugukuru Inc. (agen dispatch). Jika Anda dan perusahaan klien setuju, Anda akan dipekerjakan langsung oleh perusahaan klien.
+
+2. あなたの派遣・転換の予定 / Your dispatch and conversion plan / Rencana dispatch dan konversi Anda
+派遣先（受入企業） / Client company / Perusahaan klien: {{clientName}}
+業務内容 / Job duties / Uraian tugas: {{jobDuties}}
+派遣期間（最長6ヶ月） / Dispatch period (max. 6 months) / Periode dispatch (maks. 6 bulan): {{dispatchPeriodStart}} 〜 {{dispatchPeriodEnd}}
+直接雇用への切替予定 / Planned start of direct employment / Rencana mulai kerja langsung: {{directEmploymentStartPlan}}
+転換後の労働条件 / Working conditions after conversion / Ketentuan kerja setelah konversi: 別紙「求人条件明示書」のとおり / As stated in the attached "Job Offer Conditions Statement" / Sebagaimana tercantum dalam lampiran "Pernyataan Ketentuan Lowongan"
+
+【特定技能の方へ】雇用主の変更には在留資格変更許可申請が必要です。許可が出るまでの間は、スグクルの派遣スタッフとして働き続けます。仕事と給料が途切れることはありません。
+[For Specified Skilled Workers / Tokutei Gino] Changing your employer requires an application to change your status of residence. Until permission is granted, you will keep working - and being paid - as Sugukuru's dispatched staff. There will be no gap in your employment.
+[Untuk Pekerja Berketerampilan Khusus] Mengganti pemberi kerja Anda memerlukan permohonan perubahan status tinggal. Sampai izin diberikan, Anda akan tetap bekerja - dan dibayar - sebagai staf dispatch Sugukuru. Tidak akan ada kekosongan dalam pekerjaan Anda.
+
+3. あなたの大切な権利 / Your important rights / Hak penting Anda
+(1) 直接雇用に至らなかった場合、あなたは理由の説明を求めることができます。当社が受入企業に理由を確認し、書面でお伝えします。
+If direct employment does not happen, you may ask for the reason. We will obtain the reason from the client company and inform you in writing.
+Jika kerja langsung tidak terjadi, Anda dapat meminta alasannya. Kami akan memperoleh alasan dari perusahaan klien dan memberitahu Anda secara tertulis.
+(2) 直接雇用された後に「試用期間」を設けることはできません。
+No probation period may be set after you are hired directly.
+Tidak ada periode percobaan yang dapat ditetapkan setelah Anda dipekerjakan langsung.
+(3) 紹介の手数料をあなたが支払うことは一切ありません（無料です）。
+You will never be charged any fee for this placement - it is free for you.
+Anda tidak akan pernah dikenai biaya apa pun untuk penempatan ini - ini gratis untuk Anda.
+(4) この同意はいつでも撤回できます。希望しない場合でも、今の仕事や待遇で不利益を受けることはありません。
+You may withdraw this consent at any time. Declining will never disadvantage your current job or treatment.
+Anda dapat menarik persetujuan ini kapan saja. Menolak tidak akan pernah merugikan pekerjaan atau perlakuan Anda saat ini.
+
+4. 自発性の確認 / Confirmation of voluntary intent / Konfirmasi niat sukarela
+私は、上記の説明を私が理解できる言語で受け、内容を理解しました。私は、会社から強制されることなく、自らの意思で、紹介予定派遣（直接雇用への切替）を希望します。
+I have received the above explanation in a language I understand, and I understand its contents. Of my own free will, without any coercion from the company, I wish to proceed with this temp-to-perm dispatch (conversion to direct employment).
+Saya telah menerima penjelasan di atas dalam bahasa yang saya pahami, dan saya memahami isinya. Atas kemauan saya sendiri, tanpa paksaan dari perusahaan, saya ingin melanjutkan dispatch konversi ke kerja langsung ini.
+
+5. 個人情報の取扱いへの同意 / Consent to handling of personal information / Persetujuan atas penanganan informasi pribadi
+私は、履歴書・職歴・在留カードの情報等が、本件の紹介および在留手続の目的の範囲で、受入企業および（在留手続を依頼する場合）行政書士に提供されることに同意します。
+I consent to my resume, work history, and residence-card information being provided to the client company and - where immigration procedures are requested - to a gyoseishoshi (certified administrative scrivener), solely for this placement and the related immigration procedures.
+Saya menyetujui resume, riwayat kerja, dan informasi kartu tinggal saya diberikan kepada perusahaan klien dan - jika prosedur imigrasi diminta - kepada gyoseishoshi (juru tulis administratif bersertifikat), semata-mata untuk penempatan ini dan prosedur imigrasi terkait.
+
+本人署名 / Your signature / Tanda tangan Anda
+日付 / Date / Tanggal: {{consentDate}}
+氏名（ローマ字） / Full name (Latin letters) / Nama lengkap (huruf Latin): {{seekerFullNameLatin}}
+説明者（スグクル） / Explained by (Sugukuru staff) / Dijelaskan oleh (staf Sugukuru): {{explainedBy}}
+通訳・同席者（任意） / Interpreter / person present (optional) / Penerjemah / pihak yang hadir (opsional): {{interpreterPresent}}
+説明に使用した言語 / Language used for the explanation / Bahasa yang digunakan untuk penjelasan: {{explanationLanguage}}
+
+原本：スグクル株式会社が保管（同意記録）／写し：ご本人に交付します。
+The original is kept by Sugukuru Inc. (consent record); a copy is given to you.
+Aslinya disimpan oleh Sugukuru Inc. (catatan persetujuan); salinannya diberikan kepada Anda.
+
+----------------------------------------------------
+本書類はAssen（法定書類自動化MCP）により生成されたドラフトです。内容を確認のうえ承認してください。社労士・行政書士による法的レビュー未実施（docs/document-catalog.md参照）。
+This document is a draft generated by Assen. Please review and approve before use. Not yet reviewed by a labor/immigration attorney (see docs/document-catalog.md).
+Dokumen ini adalah draf yang dihasilkan oleh Assen. Harap tinjau dan setujui sebelum digunakan. Belum ditinjau oleh pengacara tenaga kerja/imigrasi (lihat docs/document-catalog.md).
+
+template_version: t2p-consent-form.v1

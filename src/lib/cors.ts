@@ -13,7 +13,9 @@
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-const DISCOVERY_PATHS: ReadonlySet<string> = new Set(["/health", "/ready", "/.well-known/mcp.json"]);
+// /oauth/jwks.json: OAuth/OIDC公開鍵は仕様上どこからでも取得可能であることが前提のため、常に全origin許可に含める
+// /oauth/jwks.json: OAuth/OIDC public keys are expected by spec to be fetchable from anywhere, so it is always allow-all too
+const DISCOVERY_PATHS: ReadonlySet<string> = new Set(["/health", "/ready", "/.well-known/mcp.json", "/oauth/jwks.json"]);
 
 // StreamableHTTP transportが読み書きするMCP固有ヘッダー（@modelcontextprotocol/sdkのsrc実装に準拠）
 // MCP-specific headers read/written by the Streamable HTTP transport (per @modelcontextprotocol/sdk's implementation)

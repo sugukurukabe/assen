@@ -5,7 +5,7 @@
 このドキュメントは「Assenを公式MCPレジストリ（Anthropicコネクタディレクトリ・ChatGPT Appsマーケットプレイス等）へ提出する」ために必要な作業を、
 ①**すでにコードレベルで整備済み**、②**エンジニアだけでは決められない意思決定**、③**設計書§11のM2/M3客観ゲート（必須・未達成）**の3種類に分けて管理します。
 
-このドキュメントは**登録申請のGoを意味しません**。設計書v1 §11・24行目の方針どおり、**外販β・レジストリ公開申請はM3の客観ゲート通過後**に限ります。現在のマイルストーンはM1完了・M2 Phase 1（基盤整備＋派遣3点書類A2/A3/A10＋A4台帳）着手済みです。詳細は下記C節参照。
+このドキュメントは**登録申請のGoを意味しません**。設計書v1 §11・24行目の方針どおり、**外販β・レジストリ公開申請はM3の客観ゲート通過後**に限ります。現在のマイルストーンはM1完了・M2 Phase 1（基盤整備＋派遣3点書類A2/A3/A10＋A4台帳）・M2 Phase 2（T2P書類④〜⑨＋採否理由チェーン）着手済みです。詳細は下記C節参照。
 
 This document tracks the work needed to submit Assen to a public MCP registry (Anthropic connector directory,
 ChatGPT Apps marketplace, etc.), split into three kinds: (1) infrastructure already prepared at the code level,
@@ -39,11 +39,12 @@ Milestone saat ini adalah M1 selesai, M2 belum dimulai.
 | outbox workerの実行環境 | cross-tenantポーリングループ（`listActiveTenantIds`/`processOutboxBatchForAllTenants`）・CLIエントリポイント（`src/services/outbox-worker/run.ts`、`pnpm run outbox:worker`）・Dockerfileの`outbox-worker`ターゲットを新規作成。ローカルでビルド・起動・SIGTERM停止まで実機確認済み。**M2でeventType handlerを登録するまで本番スケジューラへ接続しないこと**（README「本番運用への残課題」参照） |
 | テストスイートの汚染防止 | `transactional_outbox`はグローバルFIFOでpending行を取得するため、テストが自分の行を削除せずに残すと将来の実行で無関係な行を巻き込む不具合があった。`vitest.config.ts`に`fileParallelism: false`を設定し、`test/outbox*.test.ts`にafterAllでの行削除を追加して解消 |
 | RLSの実効性検証 | ローカル開発ロール（`assen`）がsuperuserでRLSを完全にバイパスしていたことを発見。非superuser・RLS強制の`assen_app`ロールを新規作成し、migration専用の`MIGRATION_DATABASE_URL`と分離。`audit_events`のハッシュチェーン直列化を`SELECT ... FOR UPDATE`から`pg_advisory_xact_lock`へ変更（UPDATE権限剥奪と両立するため）。既存テスト・CIを`assen_app`経由へ統一し、クリーンなDockerボリュームからの再構築でも全45テストが通ることを実地確認済み。詳細は下記D節「テナント分離検証」参照 |
-| golden promptハーネス | `src/services/golden-prompts/`（ツールカタログ取得・選択器の型・実行エンジン）と`test/golden-prompts/`（29件のフィクスチャ、CLIエントリポイント`pnpm run golden-prompts:run`）を新規作成。直接指示・間接指示・否定形の3系統でM1の全10ツールをカバー。現時点ではheuristicスタブでの配線検証のみ（実LLMでの正答率検証は未実施、下記D節参照） |
+| golden promptハーネス | `src/services/golden-prompts/`（ツールカタログ取得・選択器の型・実行エンジン）と`test/golden-prompts/`（M2 Phase 2で追加した4新規ツール分を含め計44件のフィクスチャ、CLIエントリポイント`pnpm run golden-prompts:run`）を新規作成。直接指示・間接指示・否定形の3系統で全14ツールをカバー。現時点ではheuristicスタブでの配線検証のみ（実LLMでの正答率検証は未実施、下記D節参照） |
 | バックアップ復元ドリル | `scripts/db-backup.sh`／`scripts/db-restore-drill.sh`／`scripts/db-restore.sh`／`scripts/drill-demo-data.ts`を新規作成。ローカルDocker Composeの`assen`データベースで実際に復元ドリルを実行し、行数一致・GRANT維持・audit chain検証・実際の`assen`データベースのdrop→recreate→restore後の全テストスイート通過まで実地確認済み。詳細は下記D節「バックアップ復旧」参照 |
 | MCP新旧プロトコル互換テスト | `src/server.ts`から`createAssenHttpServer()`を切り出し、実際にHTTPサーバーを起動して`initialize`のprotocolVersionを変えて送る回帰テスト（`test/protocol-version-compat.test.ts`）を新規作成。SDKが対応する全5バージョンでの成功と、未対応バージョン（`2026-07-28` RC）を送っても安全にフォールバック応答することを実地確認済み。詳細は下記D節参照 |
 | **monorepo統合（パス移設）** | 設計書§2.3の決定（下記B節参照）どおり、単独リポジトリだったAssenを`aios`リポジトリの`apps/compliance/`へ実際に移設した。GitHub Actionsのワークフローはリポジトリルートの`.github/workflows/`にしか置けない仕様のため、元の`.github/workflows/ci.yml`は`aios/.github/workflows/compliance-ci.yml`として`paths: ["apps/compliance/**"]`フィルタ＋`working-directory: apps/compliance`付きで再作成し、Dockerビルドは`docker build -f apps/compliance/Dockerfile ... apps/compliance`（コンテキストを`apps/compliance`に限定）へ調整した。データ層（Postgres/audit_events/approval_requests）はAIOSのSupabase/BigQuery/Approved Action Executorとは意図的に統合していない（別進行、下記参照）。移設後、新しい場所で`typecheck`/`lint`/`test`/`build`が実際に通ることを確認済み |
 | **M2 Phase 1：基盤整備＋派遣3点書類（A2/A3/A10）＋A4台帳自動記帳** | ④〜⑩・A2/A3/A4/A5/A10の正式な書類名定義がリポジトリのどこにも存在しなかったため、v0ドラフトから[`docs/document-catalog.md`](document-catalog.md)へ正式インポート（壁承認済み、社労士レビューは未実施）。`dispatch_assignment.confirm`ツールを新規実装し、派遣就業確定と同時にA4派遣元管理台帳（`dispatch_ledger_entries`）へ自動記帳する（`job_order.confirm`と同型パターン）。`document.generate_draft`/`document.preview`/`compliance.evaluate`を`docType`単位の汎用ルーター（`src/services/documents/doc-type-registry.ts`）へリファクタし、既存`labor_conditions_notice`に加えA2（`dispatch_individual_contract`）・A3（`dispatch_working_conditions_notice`）・A10（`dispatch_worker_notice`）の3docTypeを追加。テンプレート・mapping項目は`operations/registries/template_registry/`の既存様式（A2/A10は`{{field}}`差込済み・A3は空欄様式）を転記・変換したもので、法的文言は創作していない。既存59件超のテストスイート（`assen_app`ロール・RLS強制下）全通過を確認済み。**T2P書類④〜⑩・期限イベント・採否理由チェーン・手数料③・freee連携・法改正追従は本フェーズ対象外**（下記C節参照） |
+| **M2 Phase 2：T2P書類④〜⑨＋採否理由チェーン（`placement.confirm`）** | 実務フローv1（社外・未レビュー）の調査により、④⑤⑦⑧⑨の被評価主体（subject）を新規テーブル`job_order_referrals`とし、⑥はA2と同じ`dispatch_assignments`（`t2pFlag`）を再利用する構成を確定。⑦⑧⑨の生成には採否決定の記録が前提となるため、別項目として提示していた「採否理由チェーン・`placement.confirm`」を本フェーズへ統合（壁承認済み）。⑩直接雇用切替同意書はテンプレート不在・実務フローv1に記載なしのためスコープ外（[`docs/document-catalog.md`](document-catalog.md)に注記のみ、壁承認済み）。新規ツール4件（`job_seeker.confirm`＝帳簿②postingとPII暗号化、`job_order_referral.confirm`＝帳簿①②紹介欄posting、`placement.confirm`＝採否確定・転職勧奨禁止期間の自動計算・帳簿③posting・party snapshot、`placement.record_rejection_reason`＝不採用理由の記録）を実装し、`doc-type-registry.ts`の`subjectType`を`"dispatch_assignment" \| "job_order_referral"`のunion型へ拡張、`generate-draft.ts`/`preview.ts`/`compliance.evaluate`/`subject-lookup.ts`を`subjectType`分岐に一般化（`dispatchAssignmentId`→`subjectId`）。`job_order_referrals`テーブルへ`conditionsTyped`（JSONB）・`rejectionReason`・`rejectionReasonReceivedAt`列を追加するマイグレーションと、`party_snapshots.taken_reason`への`job_seeker_accept`追加も実施。F1〜F6の縦切り統合テスト（`test/m2-phase2-t2p-documents.test.ts`、hired/rejected両ルート）を新規追加し、既存の全テストスイート（golden-prompts含む）が通過することを確認済み。**A5（派遣先台帳雛形）・手数料③の計算ロジック精緻化・`invoice.create_draft`・freee連携・2026-10-01要領改正の追従・社労士による④〜⑨の法的レビューは本フェーズ対象外**（下記C節参照） |
 
 ---
 
@@ -57,9 +58,9 @@ Milestone saat ini adalah M1 selesai, M2 belum dimulai.
 | ライセンス方針 | `LICENSE`は「全著作権留保」の暫定既定値 | 公開製品として外販するか、OSSライセンス（例: suguvisa-mcpの前例があればそれに合わせる）を採用するかを決定 |
 | セキュリティ報告窓口 | `SECURITY.md`は「Slack `#30-dev`」のプレースホルダ | 外部提出前に実在する監視可能な連絡先（メール/フォーム）へ更新 |
 | Server Cardのrepository/contact実値 | `SERVER_CARD_REPOSITORY_URL`/`SERVER_CARD_CONTACT_URL`は未設定（null出力） | 実際のURL確定後に環境変数へ設定 |
-| OAuthプロバイダの確定方式 | README・設計書は「本番はGoogle Workspace SSOを想定」と記載 | 標準的なGoogle IDトークンには`role`/`tenant_id`相当のクレームが無いため、(a) Workspace管理者コンソールのカスタム属性をクレームに載せる方式、または(b) Google認証後にAssen専用クレーム付きJWTを発行する薄いトークン交換層を用意する方式、のどちらを採るか決定が必要 |
+| OAuthプロバイダの確定方式 | **決定・実装・E2E確認済み**：(b)トークン交換層方式を採用し実装（`src/lib/token-exchange.ts`、上記G節参照）。本番署名鍵・issuer・実`GOOGLE_OAUTH_CLIENT_ID`を設定済みで、実際のGoogle Workspaceログイン→Assen JWT→MCP呼び出し成功まで確認済み（2026-07-24、[`docs/ops-runbook.md`](ops-runbook.md)6.2節参照）。allowlist（`TOKEN_EXCHANGE_ALLOWLIST_JSON`）は現時点でコード管理の環境変数のみ（`admin@example.co.jp`のみ登録）で、Workspace管理コンソールとの連携はしていない | メンバー追加時のallowlist更新運用の確立（現状は壁への手動依頼）。ネットワーク層の追加防御（IAP/VPN）は未実施 |
 | 外販時のDB分離 | Phase 0はaios-pg同居を条件付き許容（設計書§2.3） | 外販β開始時は別Cloud SQLインスタンス（可能なら別GCPプロジェクト）へ分離する方針は決定済み。実施タイミングの確定が必要 |
-| 法的意見書の依頼 | 未着手 | 高平さん（行政書士）経由で社労士を紹介依頼し、設計書§3.2の9論点（事実選択の主体・条項自動選択の有無・適法判断の不実施・サポート台本・価格設計・広告表現・規程責任・グレー案件引継ぎ・顧客理解可能なUI）について意見書を取得する |
+| 法的意見書の依頼 | **送付前ドラフト作成済み**：[`docs/legal-review-request-draft.md`](legal-review-request-draft.md)に、高平さん（行政書士）への紹介依頼文面と、社労士への第1バッチ（労働条件通知書・A2/A3/A10）依頼文面（設計書§3.2の9論点を明記）を用意した。**実際の送信はこのセッションでは行っていない** | 壁が文面を確認・調整のうえ実際に送付し、意見書受領後に[`docs/document-catalog.md`](document-catalog.md)・テンプレート・本項目を更新する |
 
 ---
 
@@ -67,7 +68,14 @@ Milestone saat ini adalah M1 selesai, M2 belum dimulai.
 
 設計書§11より（〜14週想定）。M2は7項目に分かれ、Phase 1で最初の1項目（基盤整備＋派遣3点書類）に着手した。
 
-- [ ] T2P全書類（④求人条件明示書・⑤本人同意書・⑥T2P個別契約書・⑦転換条件覚書・⑧不採用理由請求・⑨不採用理由通知・⑩直接雇用切替同意書）の生成（[`docs/document-catalog.md`](document-catalog.md)で書類名は確定したが、生成ロジックは未着手）
+- [~] T2P全書類（④求人条件明示書・⑤本人同意書・⑥T2P個別契約書・⑦転換条件覚書・⑧不採用理由請求・⑨不採用理由通知・⑩直接雇用切替同意書）の生成 — **Phase 2で④〜⑨に着手**（上記A節「M2 Phase 2」参照）
+  - [x] `job_seeker.confirm`（求職者確定・PII暗号化・帳簿②posting）／`job_order_referral.confirm`（紹介行確定・帳簿①②紹介欄posting）ツール
+  - [x] ④求人条件明示書・⑤本人同意書のdomain schema・テンプレート・mapping・`compliance.evaluate`対応（`job_order_referral.confirm`確定直後に生成可能）
+  - [x] ⑥T2P個別契約書（A2と同じ`dispatch_assignments.conditionsTyped`を`t2pFlag=true`時に再利用する方式で実装）
+  - [x] ⑦転換条件覚書（`placement.confirm`のhiredルートで生成可能）・⑧不採用理由の明示請求（`placement.confirm`のrejectedルートで生成可能）・⑨不採用理由の書面明示（`placement.record_rejection_reason`後に生成可能）
+  - [x] ⑩直接雇用切替同意書は**スコープ外**と確定（テンプレート不在・実務フローv1に記載なし。[`docs/document-catalog.md`](document-catalog.md)に注記、壁承認済み）
+  - [ ] 社労士による法的レビュー（④〜⑨のテンプレート・必須項目の正確性）は未実施
+  - [ ] `document.request_approval`→`document.approve`→交付の縦切り一本を、新docType（④〜⑨）で実際に通すE2Eシナリオテストは未実施（`m2-phase2-t2p-documents.test.ts`はconfirm→generate_draft/previewまでで、承認・交付フローは対象外）
 - [~] 派遣3点（A2/A3/A10/台帳）の生成 — **Phase 1でエンジニアリング部分に着手**（上記A節「M2 Phase 1」参照）
   - [x] `dispatch_assignment.confirm`ツール（派遣就業確定＋A4派遣元管理台帳の自動記帳）
   - [x] A2（個別契約書）・A3（就業条件明示書）・A10（派遣先通知）のdomain schema・テンプレート・mapping・`compliance.evaluate`対応
@@ -76,9 +84,9 @@ Milestone saat ini adalah M1 selesai, M2 belum dimulai.
   - [ ] T2P（紹介予定派遣）時のA3 `t2pDisclosure`・A10 `periodLimitExceptionCategory`等の条件分岐ロジックは未実装（現状は任意項目としてスキーマ上受け付けるのみ）
   - [ ] `document.request_approval`→`document.approve`→交付の縦切り一本を、新docType（A2/A3/A10）で実際に通すE2Eシナリオテストは未実施（既存M1ゲートテストはlabor_conditions_noticeのみ）
 - [ ] 期限イベント（4か月/5か月/6か月/closeout）の実装
-- [ ] 採否理由チェーンの実装
-- [ ] 手数料③の計算・記録
-- [ ] freee連携
+- [x] **採否理由チェーンの実装**：`placement.confirm`（採否確定。hired時は転職勧奨禁止期間＝採用日+2年を自動計算し、party snapshot作成＋帳簿③`fee_records`へposting。rejected時は⑧書類生成に必要な項目を記録）と`placement.record_rejection_reason`（派遣先からの回答受領後、不採用理由をtyped columnへ記録し⑨生成の前提を整える）を実装。hired/rejected両ルートを`test/m2-phase2-t2p-documents.test.ts`で検証済み
+- [~] 手数料③の計算・記録 — **`placement.confirm`のhiredルートで`fee_records`へのposting自体は実装済み**（帳簿③、`feeType`/`amountInclTax`/`calcBasisWage`/`calcBasisRate`/`collectedAt`）。手数料額そのものの計算ロジック（賃金・成約時期に応じた算定式）の精緻化は未着手（呼び出し側が算定済みの金額を渡す前提）
+- [ ] freee連携（`invoice.create_draft`等。`fee_records`へのposting止まりで請求書生成は未着手）
 - [ ] **2026-10-01 派遣業務取扱要領改正**の追従実戦（legal_sources→legal_rules差分→再スキャンの一連を実地検証）
 
 **Done条件（客観ゲート）**：F1〜F6を、訂正・失敗・不採用を含むシナリオテストで通過。6か月blocking findingが実動。
@@ -109,7 +117,7 @@ Milestone saat ini adalah M1 selesai, M2 belum dimulai.
   - `@modelcontextprotocol/sdk`（現時点の最新公開版1.29.0）が対応する全5バージョン（最新`2025-11-25`〜最古`2024-10-07`）で`initialize`が正しくネゴシエーションできる
   - 設計書が言及する`2026-07-28` RCは、**執筆時点でSDK 1.29.0自体がまだ対応していない**（`SUPPORTED_PROTOCOL_VERSIONS`に未収録。npm公開版でも1.29.0が最新であることを確認済み）。未対応バージョンを送った場合、サーバーはクラッシュせず、SDKが自身の最新バージョン（`2025-11-25`）へフォールバックした応答を返すことを確認済み（クライアント側が非対応と判断して切断する設計を前提とした、仕様どおりの安全側動作）
   - **残タスク（M3で対応・SDK側のアップデート待ち）**：`2026-07-28` RCへの実対応は、SDKが対応版を公開した後に本テストの期待値を更新して再検証する
-- [ ] **golden promptテスト（実LLMでの正答率検証）**：ハーネス自体（フィクスチャ形式・実カタログ取得・正誤判定・カテゴリ別集計、`src/services/golden-prompts/`・`test/golden-prompts/`）は整備済みで、`pnpm run golden-prompts:run`で手動実行できる。直接指示・間接指示・否定形の3系統で計29件のフィクスチャがM1の全10ツールをカバー。ただし現時点では決定論的なheuristicToolSelector（キーワード一致のスタブ）で配線を検証しているのみで、**「モデルが正しいツール列を選ぶ」という本来の検証は未実施**（実LLM呼び出しへの差し替えはB節のプロバイダ決定待ち。`ToolSelector`型で分離済みのため差し替えは小さな変更で済む見込み）
+- [ ] **golden promptテスト（実LLMでの正答率検証）**：ハーネス自体（フィクスチャ形式・実カタログ取得・正誤判定・カテゴリ別集計、`src/services/golden-prompts/`・`test/golden-prompts/`）は整備済みで、`pnpm run golden-prompts:run`で手動実行できる。直接指示・間接指示・否定形の3系統で計44件のフィクスチャが全14ツール（M1・M2 Phase 1・M2 Phase 2）をカバー。ただし現時点では決定論的なheuristicToolSelector（キーワード一致のスタブ）で配線を検証しているのみで、**「モデルが正しいツール列を選ぶ」という本来の検証は未実施**（実LLM呼び出しへの差し替えはB節のプロバイダ決定待ち。`ToolSelector`型で分離済みのため差し替えは小さな変更で済む見込み）
 
 **Done条件（客観ゲート）**：帳簿との数値照合一致、復旧試験成功、PIIログ検査ゼロ、権限侵入テスト（テナント越境ゼロ）、法的意見書完了。
 
@@ -127,6 +135,32 @@ Milestone saat ini adalah M1 selesai, M2 belum dimulai.
 - [ ] 最新法令版との差分ゼロ（legal_sources監視の実績）
 - [ ] 社労士意見書取得（§3.2の9論点）
 - [ ] DB分離（別インスタンス）完了
+
+---
+
+## G. 自社利用MVPゲート（外販レジストリ提出とは別軌） / Internal-use MVP gate (separate track from registry submission) / Gate MVP penggunaan internal (jalur terpisah dari pengajuan registry)
+
+**このゲートは上記C・D・E（外販β・レジストリ公開のゲート）とは別軌です。** 外販ゲート通過を待たず、**スグクル社内の限定メンバーがCloud Run上のAssenに接続し、実案件に近いデータで純紹介・派遣の縦切りを承認〜交付まで回せる状態**を先に達成することを目的とします（Phase 0ドッグフーディング、[`法定書類自動化MCP_設計書_v1.md`](../../法定書類自動化MCP_設計書_v1.md) §1「順序」）。
+
+対象は次の2フローに固定します。外販ゲート（上記E）が要求する複数フローの運用実績・法的意見書取得等は本ゲートの対象外です。
+
+1. 純紹介縦切り：`job_order.analyze` → `job_order.confirm` → 労働条件通知書 draft → 承認 → 署名済み添付 → 交付
+2. 派遣縦切り：`dispatch_assignment.confirm` → A2/A3/A10 draft → 承認 → 署名済み添付 → 交付
+
+明示的に対象外（外販ゲートまたは将来フェーズへ先送り）：freee `invoice.create_draft`、様式8/11・マージン率集計、T2P期限イベント（4か月/5か月/6か月/closeout）、2026-10-01要領改正の追従実戦、外販β向けDB分離（別インスタンス）、社外レジストリ提出。
+
+- [x] **派遣docType（A2/A3/A10）の承認〜交付E2Eテスト**：`document.generate_draft`→`request_approval`→`approve`→`attach_executed_copy`→`record_delivery`を通し、hash/nonce/期限ガードと職務分離（requester≠approver）が新docTypeでも機能することを確認（`test/m2-dispatch-approval-e2e.test.ts`、3docType×1テスト＋T2P④1件の計4テストが通過）
+- [x] **T2P docType最低1件の承認〜交付E2Eテスト**：④求人条件明示書（`job_order_referral`をsubjectとするdocument）で同じ縦切りが機能することを確認（同ファイル）
+- [x] **outbox handlerの実装（Slack承認通知）**：`document.approval_requested`にSlack通知handler（`src/services/outbox-worker/handlers/slack-approval-notifier.ts`）を登録した。`SLACK_BOT_TOKEN`/`SLACK_APPROVAL_CHANNEL_ID`未設定時はログ出力のみに留まり例外を投げない（`test/outbox-slack-approval-notifier.test.ts`で確認済み）。**GCS正本保存は元々`generate-draft.ts`/`attach-executed-copy.ts`が`putImmutableObject`経由で同期的に行っており、outbox handlerとしての追加実装は不要と判明した**（正本は既にGCS/MinIOにある）。**freee連携handlerは登録しない**（外販ゲート対象）
+- [x] **OAuthトークン交換層の実装**：`src/lib/token-exchange.ts`を新規実装。`POST /oauth/token-exchange`（`src/server.ts`）がGoogle IDトークンを`jose`で検証（issuer/audience/署名）し、`email_verified`確認＋`TOKEN_EXCHANGE_ALLOWLIST_JSON`（email→role/tenantIdマップ）照合の後、Assen専用クレーム（`role`/`tenant_id`/`aud`）付きJWTを自己署名で発行する（下記B節「OAuthプロバイダの確定方式」の(b)案を採用）。署名鍵は`TOKEN_EXCHANGE_SIGNING_PRIVATE_KEY_JWK`未設定時は開発用にプロセス起動ごとのエフェメラル鍵を生成（本番は`assertProductionSafety`が設定必須を強制）。公開鍵は`GET /oauth/jwks.json`（`cors.ts`のdiscovery pathsへ追加済み）で配布し、既存の`AUTH_MODE=oauth`検証コード（`src/lib/auth.ts`）がそのまま`OAUTH_JWKS_URI`経由で消費できる。単体テストは`test/token-exchange.test.ts`（有効時：allowlist許可/拒否・email_verified拒否・audience不一致拒否・発行トークンを`verifyOAuthBearerToken`で検証まで通し）と`test/token-exchange-disabled.test.ts`（`GOOGLE_OAUTH_CLIENT_ID`未設定時の無効化動作）に分離（`env.loadEnv`が初回呼び出しでキャッシュされるため）
+- [x] **Assen専用Cloud SQLインスタンス・GCSバケット・Cloud Runサービスの構築**：2026-07-24、壁の都度の承認のもとCursorエージェントが実際に構築した。`assen-mvp`（Cloud SQL POSTGRES_16）・`assen-documents-mvp`（GCS）・`assen-runtime`（Cloud Run Service、稼働中: `https://assen-runtime-000000000000.asia-northeast1.run.app`）・`assen-migrator`（Cloud Run Job、実行成功）・`assen-outbox-worker`（Worker Pool、稼働中）・Secret Manager 7個・専用サービスアカウント4個・WIF連携。詳細と当初手順書からの修正点は[`docs/ops-runbook.md`](ops-runbook.md)「実際の構築結果サマリー」参照
+- [x] **本番相当環境での`/ready`緑・`tools/list`成功**：`AUTH_MODE=oauth`で実際にGoogle Workspaceブラウザログイン→`/oauth/token-exchange`→Assen JWT→`/mcp`の`initialize`が200で成功することを2026-07-24に確認済み（[`docs/ops-runbook.md`](ops-runbook.md)6.2節追記参照）。Cursor/Claudeからの日常利用手順は[`docs/team-guide.md`](team-guide.md)3.3節、再利用ツールは`apps/compliance/scripts/get-assen-token.ts`
+- [ ] **本番相当環境でのRLS実効性確認**：別tenantの行が`assen_app`ロールから読めないことをCloud SQL上で確認（ローカルでの確認は上記D節「テナント分離検証」で完了済み。本番環境固有の接続確認が残タスク）
+- [~] **社内シャドーラン**：手順書（[`docs/shadow-run-runbook.md`](shadow-run-runbook.md)）を整備し、[`docs/team-guide.md`](team-guide.md)にツール数（15件）・派遣ワークフロー（6.5章）・本番接続状況（3.3章）を反映した。**非開発者による実案件1件の実施自体はこのセッションでは行っていない**（実施後にSlack `#90_dev`への報告を確認してこの項目を`[x]`にする）
+
+**Done条件（客観ゲート）**：上記チェック項目すべて完了し、純紹介・派遣それぞれ1案件が本番相当環境で「取込→確定→draft→承認→署名済み添付→交付」を完走し、`audit:verify`が通ること。
+
+**社労士レビューとの関係**：本ゲート達成は法的レビュー完了を前提としません。ただしレビュー未完了の間は、生成文書・承認UIに「社内検証用ドラフト・対外提出前に人が最終確認」の表示を維持し、実際の対外提出には使わない運用で縛ります（並行して依頼を進める。下記B節参照）。
 
 ---
 

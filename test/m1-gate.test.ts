@@ -113,7 +113,7 @@ afterAll(async () => {
 describe("M1ゲート: 労働条件通知書の縦切り一本 / M1 gate: labor-conditions-notice vertical slice", () => {
   it("全項目が揃っている場合、previewはpassを返す / preview returns pass when every field is present", async () => {
     const dispatchAssignmentId = await insertDispatchAssignment();
-    const preview = await previewLaborConditionsNotice(db, { tenantId, dispatchAssignmentId });
+    const preview = await previewLaborConditionsNotice(db, { tenantId, subjectId: dispatchAssignmentId });
     expect(preview.findings).toEqual([]);
     expect(preview.renderedText).toContain("あずま園");
   });
@@ -123,7 +123,7 @@ describe("M1ゲート: 労働条件通知書の縦切り一本 / M1 gate: labor-
 
     const draft = await generateLaborConditionsNoticeDraft(db, {
       tenantId,
-      dispatchAssignmentId,
+      subjectId: dispatchAssignmentId,
       principal: requester,
       requestId: randomUUID(),
       idempotencyKey: randomUUID(),
@@ -208,7 +208,7 @@ describe("M1ゲート: 労働条件通知書の縦切り一本 / M1 gate: labor-
     const dispatchAssignmentId = await insertDispatchAssignment();
     const draft = await generateLaborConditionsNoticeDraft(db, {
       tenantId,
-      dispatchAssignmentId,
+      subjectId: dispatchAssignmentId,
       principal: requester,
       requestId: randomUUID(),
       idempotencyKey: randomUUID(),
@@ -245,7 +245,7 @@ describe("M1ゲート: 労働条件通知書の縦切り一本 / M1 gate: labor-
     const dispatchAssignmentId = await insertDispatchAssignment();
     const draft = await generateLaborConditionsNoticeDraft(db, {
       tenantId,
-      dispatchAssignmentId,
+      subjectId: dispatchAssignmentId,
       principal: requester,
       requestId: randomUUID(),
       idempotencyKey: randomUUID(),
@@ -284,7 +284,7 @@ describe("M1ゲート: 労働条件通知書の縦切り一本 / M1 gate: labor-
     const dispatchAssignmentId = await insertDispatchAssignment();
     const draftA = await generateLaborConditionsNoticeDraft(db, {
       tenantId,
-      dispatchAssignmentId,
+      subjectId: dispatchAssignmentId,
       principal: requester,
       requestId: randomUUID(),
       idempotencyKey: randomUUID(),
@@ -293,7 +293,7 @@ describe("M1ゲート: 労働条件通知書の縦切り一本 / M1 gate: labor-
     const dispatchAssignmentId2 = await insertDispatchAssignment();
     const draftB = await generateLaborConditionsNoticeDraft(db, {
       tenantId,
-      dispatchAssignmentId: dispatchAssignmentId2,
+      subjectId: dispatchAssignmentId2,
       principal: requester,
       requestId: randomUUID(),
       idempotencyKey: randomUUID(),
@@ -324,7 +324,7 @@ describe("M1ゲート: 労働条件通知書の縦切り一本 / M1 gate: labor-
 
     const first = await generateLaborConditionsNoticeDraft(db, {
       tenantId,
-      dispatchAssignmentId,
+      subjectId: dispatchAssignmentId,
       principal: requester,
       requestId: randomUUID(),
       idempotencyKey,
@@ -333,7 +333,7 @@ describe("M1ゲート: 労働条件通知書の縦切り一本 / M1 gate: labor-
 
     const retry = await generateLaborConditionsNoticeDraft(db, {
       tenantId,
-      dispatchAssignmentId,
+      subjectId: dispatchAssignmentId,
       principal: requester,
       requestId: randomUUID(),
       idempotencyKey,

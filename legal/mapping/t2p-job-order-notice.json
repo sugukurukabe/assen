@@ -1,0 +1,152 @@
+{
+  "docType": "t2p_job_order_notice",
+  "docTypeLabel": "求人条件明示書（④） / Job-order conditions notice (④) / Pemberitahuan ketentuan lowongan (④)",
+  "table": "jobOrderReferrals",
+  "jsonColumn": "conditionsTyped",
+  "zodSchemaModule": "src/domain/t2p-job-order-notice.ts",
+  "zodSchemaExport": "t2pJobOrderNoticeSchema",
+  "legalBasis": "職業安定法第5条の3第1項・同法施行規則第4条の2",
+  "items": [
+    {
+      "legalItem": "求職者",
+      "dbColumn": "conditionsTyped.staffName",
+      "outputField": "求職者"
+    },
+    {
+      "legalItem": "求人者（派遣先）名称",
+      "dbColumn": "conditionsTyped.clientName",
+      "outputField": "求人者名称"
+    },
+    {
+      "legalItem": "求人者の所在地",
+      "dbColumn": "conditionsTyped.clientAddress",
+      "outputField": "求人者所在地"
+    },
+    {
+      "legalItem": "求人者の連絡先（任意）",
+      "dbColumn": "conditionsTyped.clientContact",
+      "outputField": "求人者連絡先",
+      "optional": true
+    },
+    {
+      "legalItem": "業務内容（5条の3第1項1号）",
+      "dbColumn": "conditionsTyped.jobDuties",
+      "outputField": "業務内容"
+    },
+    {
+      "legalItem": "業務の変更の範囲（任意）",
+      "dbColumn": "conditionsTyped.jobDutiesChangeScope",
+      "outputField": "業務変更範囲",
+      "optional": true
+    },
+    {
+      "legalItem": "就業場所",
+      "dbColumn": "conditionsTyped.workLocationT2p",
+      "outputField": "就業場所"
+    },
+    {
+      "legalItem": "就業場所の変更の範囲（任意）",
+      "dbColumn": "conditionsTyped.workLocationChangeScopeT2p",
+      "outputField": "就業場所変更範囲",
+      "optional": true
+    },
+    {
+      "legalItem": "労働契約の期間・更新・上限",
+      "dbColumn": "conditionsTyped.contractPeriodTerms",
+      "outputField": "契約期間"
+    },
+    {
+      "legalItem": "試用期間（任意）",
+      "dbColumn": "conditionsTyped.probationPeriodTerms",
+      "outputField": "試用期間",
+      "optional": true
+    },
+    {
+      "legalItem": "就業時間・休憩・時間外労働",
+      "dbColumn": "conditionsTyped.workHoursTerms",
+      "outputField": "就業時間"
+    },
+    {
+      "legalItem": "休日・休暇",
+      "dbColumn": "conditionsTyped.daysOffTerms",
+      "outputField": "休日休暇"
+    },
+    {
+      "legalItem": "賃金",
+      "dbColumn": "conditionsTyped.wageDetails",
+      "outputField": "賃金"
+    },
+    {
+      "legalItem": "社会保険・労働保険の加入状況（任意）",
+      "dbColumn": "conditionsTyped.socialInsuranceEnrollment",
+      "outputField": "社会保険",
+      "optional": true
+    },
+    {
+      "legalItem": "受動喫煙防止措置（任意）",
+      "dbColumn": "conditionsTyped.smokingPreventionMeasures",
+      "outputField": "受動喫煙防止",
+      "optional": true
+    },
+    {
+      "legalItem": "雇用形態（T2P転換）",
+      "dbColumn": "conditionsTyped.employmentCategoryT2p",
+      "outputField": "雇用形態"
+    },
+    {
+      "legalItem": "派遣期間開始",
+      "dbColumn": "conditionsTyped.dispatchPeriodStart",
+      "outputField": "派遣期間開始"
+    },
+    {
+      "legalItem": "派遣期間終了",
+      "dbColumn": "conditionsTyped.dispatchPeriodEnd",
+      "outputField": "派遣期間終了"
+    },
+    {
+      "legalItem": "直接雇用の打診時期（任意）",
+      "dbColumn": "conditionsTyped.t2pConversionTiming",
+      "outputField": "打診時期",
+      "optional": true
+    },
+    {
+      "legalItem": "転換後の雇用形態・労働条件（見込み）",
+      "dbColumn": "conditionsTyped.t2pConversionConditions",
+      "outputField": "転換後条件"
+    },
+    {
+      "legalItem": "理由明示の説明",
+      "dbColumn": "conditionsTyped.t2pNonHireReasonPolicy",
+      "outputField": "理由明示説明"
+    },
+    {
+      "legalItem": "寮・通勤（任意）",
+      "dbColumn": "conditionsTyped.dormitoryAndCommute",
+      "outputField": "寮通勤",
+      "optional": true
+    },
+    {
+      "legalItem": "その他備考（任意）",
+      "dbColumn": "conditionsTyped.otherRemarks",
+      "outputField": "備考",
+      "optional": true
+    },
+    {
+      "legalItem": "明示年月日",
+      "dbColumn": "conditionsTyped.disclosureDate",
+      "outputField": "明示年月日"
+    },
+    {
+      "legalItem": "明示方法",
+      "dbColumn": "conditionsTyped.disclosureMethod",
+      "outputField": "明示方法"
+    },
+    {
+      "legalItem": "担当者（任意）",
+      "dbColumn": "conditionsTyped.staffContactPerson",
+      "outputField": "担当者",
+      "optional": true
+    }
+  ],
+  "notes": "テンプレートは~/Downloads配下の社外・未レビューDOCXテンプレを{{field}}差込式に変換したもの。社労士・行政書士による法的レビュー未実施（docs/document-catalog.md参照）。 / Template converted from an external, unreviewed DOCX template under ~/Downloads into {{field}} substitution. Not yet reviewed by a labor/immigration attorney (see docs/document-catalog.md). / Template dikonversi dari template DOCX eksternal yang belum ditinjau di bawah ~/Downloads menjadi substitusi {{field}}. Belum ditinjau oleh pengacara tenaga kerja/imigrasi (lihat docs/document-catalog.md)."
+}

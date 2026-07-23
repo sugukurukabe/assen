@@ -1,25 +1,30 @@
 /**
- * document.generate_draftの中核処理：dispatch_assignments.conditionsTypedからテンプレートを差し込み、
- * GCS/MinIOへcontent-addressableに保存し、documentsをdraftとして作成する（§7・§6ステップ⑤）。
+ * document.generate_draftの中核処理：subjectType（dispatch_assignment／job_order_referral）に応じた
+ * subject行のconditionsTypedからテンプレートを差し込み、GCS/MinIOへcontent-addressableに保存し、
+ * documentsをdraftとして作成する（§7・§6ステップ⑤）。
  * docTypeはdoc-type-registry.tsで解決するため、新しいdocTypeの追加はレジストリへの1件追記のみで済む
  *
- * Core logic for document.generate_draft: renders the template from dispatch_assignments.conditionsTyped,
- * stores it content-addressably, and creates a documents row as draft (§7, §6 step 5). docType is resolved via
+ * Core logic for document.generate_draft: renders the template from the subject row's conditionsTyped
+ * (subject row resolved per subjectType — dispatch_assignment or job_order_referral), stores it
+ * content-addressably, and creates a documents row as draft (§7, §6 step 5). docType is resolved via
  * doc-type-registry.ts, so adding a new docType requires only one new registry entry
  *
- * Logika inti document.generate_draft: merender template dari dispatch_assignments.conditionsTyped,
- * menyimpannya secara content-addressable, dan membuat baris documents sebagai draft (§7, langkah 5 §6).
- * docType diresolusikan via doc-type-registry.ts, sehingga menambah docType baru hanya memerlukan satu entri registry baru
+ * Logika inti document.generate_draft: merender template dari conditionsTyped baris subjek (baris
+ * subjek diresolusikan per subjectType — dispatch_assignment atau job_order_referral), menyimpannya
+ * secara content-addressable, dan membuat baris documents sebagai draft (§7, langkah 5 §6). docType
+ * diresolusikan via doc-type-registry.ts, sehingga menambah docType baru hanya memerlukan satu entri
+ * registry baru
  */
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "../../db/schema/index.js";
-import { dispatchAssignments } from "../../db/schema/ledgers.js";
 import { documents } from "../../db/schema/documents.js";
 import { transactionalOutbox } from "../../db/schema/outbox.js";
 import { renderTemplate } from "./render-template.js";
 import { getDocTypeDefinition } from "./doc-type-registry.js";
+import { buildSubjectRenderValues } from "./subject-values.js";
+import { loadSubjectRow } from "../rules/subject-lookup.js";
 import { putImmutableObject } from "../../lib/storage.js";
 import { canonicalJsonString, sha256Hex } from "../../lib/hash.js";
 import { UserInputError } from "../../lib/errors.js";
@@ -34,7 +39,10 @@ const RULE_SET_VERSION = "v1";
 export interface GenerateDraftInput {
   tenantId: string;
   docType: string;
-  dispatchAssignmentId: string;
+  // 判定対象のID（dispatch_assignment.id または job_order_referral.id、docTypeのsubjectTypeで決まる）
+  // Target subject id (dispatch_assignment.id or job_order_referral.id, decided by the docType's subjectType)
+  // ID subjek target (dispatch_assignment.id atau job_order_referral.id, ditentukan oleh subjectType docType)
+  subjectId: string;
   principal: AuthenticatedPrincipal;
   requestId: string;
   // 同一操作の再実行でdraftが重複作成されないようにするための冪等キー / Idempotency key preventing duplicate drafts on retry / Kunci idempotensi agar draft tidak duplikat saat retry
@@ -81,16 +89,15 @@ export async function generateDocumentDraft(db: Db, input: GenerateDraftInput): 
     }
   }
 
-  const [assignment] = await db.select().from(dispatchAssignments).where(eq(dispatchAssignments.id, input.dispatchAssignmentId));
-  if (!assignment) {
+  const subjectRow = await loadSubjectRow(db, docTypeDefinition.subjectType, input.subjectId);
+  if (!subjectRow) {
     throw new UserInputError(
-      `dispatch_assignment ${input.dispatchAssignmentId} が見つかりません / dispatch_assignment ${input.dispatchAssignmentId} not found`,
-      "dispatchAssignmentIdを確認してください / Please verify dispatchAssignmentId",
+      `${docTypeDefinition.subjectType} ${input.subjectId} が見つかりません / ${docTypeDefinition.subjectType} ${input.subjectId} not found`,
+      "subjectIdを確認してください / Please verify subjectId",
     );
   }
 
-  const parsed = docTypeDefinition.schema.safeParse(assignment.conditionsTyped);
-  const values = parsed.success ? (parsed.data as Record<string, unknown>) : (assignment.conditionsTyped as Record<string, unknown>);
+  const values = buildSubjectRenderValues(docTypeDefinition, subjectRow);
 
   const bytes = renderTemplate(docTypeDefinition.templateFileName, values);
   const { objectUri, sha256 } = await putImmutableObject(docTypeDefinition.storagePrefix, bytes, "text/plain; charset=utf-8");
@@ -107,7 +114,7 @@ export async function generateDocumentDraft(db: Db, input: GenerateDraftInput): 
       version: 1,
       docType: docTypeDefinition.docType,
       subjectType: docTypeDefinition.subjectType,
-      subjectId: input.dispatchAssignmentId,
+      subjectId: input.subjectId,
       templateVersion: docTypeDefinition.templateFileName.replace(/\.txt$/, ""),
       ruleSetVersion: RULE_SET_VERSION,
       inputSnapshotHash,
@@ -132,7 +139,7 @@ export async function generateDocumentDraft(db: Db, input: GenerateDraftInput): 
       aggregateType: "document",
       aggregateId: documentId,
       eventType: "document.draft_generated",
-      payload: { documentId, docType: docTypeDefinition.docType, dispatchAssignmentId: input.dispatchAssignmentId, reason: input.reason },
+      payload: { documentId, docType: docTypeDefinition.docType, subjectId: input.subjectId, reason: input.reason },
       idempotencyKey: input.idempotencyKey,
       externalReference: documentId,
     });

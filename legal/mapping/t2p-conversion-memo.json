@@ -1,0 +1,107 @@
+{
+  "docType": "t2p_conversion_memo",
+  "docTypeLabel": "転換条件覚書（⑦） / Conversion terms memo (⑦) / Memo ketentuan konversi (⑦)",
+  "table": "jobOrderReferrals",
+  "jsonColumn": "conditionsTyped",
+  "zodSchemaModule": "src/domain/t2p-conversion-memo.ts",
+  "zodSchemaExport": "t2pConversionMemoSchema",
+  "legalBasis": "労働者派遣個別契約書（T2P）第2表T-10の詳細を定める運用上の覚書",
+  "items": [
+    {
+      "legalItem": "対象派遣労働者",
+      "dbColumn": "conditionsTyped.staffName",
+      "outputField": "対象派遣労働者"
+    },
+    {
+      "legalItem": "国籍（任意）",
+      "dbColumn": "conditionsTyped.staffNationality",
+      "outputField": "国籍",
+      "optional": true
+    },
+    {
+      "legalItem": "在留資格・在留期限（任意）",
+      "dbColumn": "conditionsTyped.staffResidenceStatusAndExpiry",
+      "outputField": "在留資格",
+      "optional": true
+    },
+    {
+      "legalItem": "甲（派遣先）名称",
+      "dbColumn": "conditionsTyped.clientName",
+      "outputField": "派遣先名称"
+    },
+    {
+      "legalItem": "甲（派遣先）所在地",
+      "dbColumn": "conditionsTyped.clientAddress",
+      "outputField": "派遣先所在地"
+    },
+    {
+      "legalItem": "甲（派遣先）代表者",
+      "dbColumn": "conditionsTyped.clientRepresentative",
+      "outputField": "派遣先代表者"
+    },
+    {
+      "legalItem": "転換予定時期",
+      "dbColumn": "conditionsTyped.conversionDate",
+      "outputField": "転換予定時期"
+    },
+    {
+      "legalItem": "転換後の雇用形態",
+      "dbColumn": "conditionsTyped.postConversionEmploymentType",
+      "outputField": "転換後雇用形態"
+    },
+    {
+      "legalItem": "転換後の賃金",
+      "dbColumn": "conditionsTyped.postConversionWage",
+      "outputField": "転換後賃金"
+    },
+    {
+      "legalItem": "転換後の就業場所",
+      "dbColumn": "conditionsTyped.postConversionWorkLocation",
+      "outputField": "転換後就業場所"
+    },
+    {
+      "legalItem": "転換後のその他条件（任意）",
+      "dbColumn": "conditionsTyped.postConversionOtherTerms",
+      "outputField": "転換後その他条件",
+      "optional": true
+    },
+    {
+      "legalItem": "紹介手数料額（T-7実額）",
+      "dbColumn": "conditionsTyped.referralFeeAmount",
+      "outputField": "紹介手数料額"
+    },
+    {
+      "legalItem": "紹介手数料の支払期日",
+      "dbColumn": "conditionsTyped.feePaymentDueDate",
+      "outputField": "支払期日"
+    },
+    {
+      "legalItem": "紹介手数料の支払方法",
+      "dbColumn": "conditionsTyped.feePaymentMethod",
+      "outputField": "支払方法"
+    },
+    {
+      "legalItem": "返金規定",
+      "dbColumn": "conditionsTyped.refundPolicy",
+      "outputField": "返金規定"
+    },
+    {
+      "legalItem": "代替紹介特約（任意）",
+      "dbColumn": "conditionsTyped.replacementReferralClause",
+      "outputField": "代替紹介特約",
+      "optional": true
+    },
+    {
+      "legalItem": "在留手続費用の取扱い（任意）",
+      "dbColumn": "conditionsTyped.visaProcedureFeeClause",
+      "outputField": "在留手続費用",
+      "optional": true
+    },
+    {
+      "legalItem": "覚書締結日",
+      "dbColumn": "conditionsTyped.memoDate",
+      "outputField": "締結日"
+    }
+  ],
+  "notes": "テンプレートは~/Downloads配下の社外・未レビューDOCXテンプレを{{field}}差込式に変換したもの。社労士・行政書士による法的レビュー未実施（docs/document-catalog.md参照）。 / Template converted from an external, unreviewed DOCX template under ~/Downloads into {{field}} substitution. Not yet reviewed by a labor/immigration attorney (see docs/document-catalog.md). / Template dikonversi dari template DOCX eksternal yang belum ditinjau di bawah ~/Downloads menjadi substitusi {{field}}. Belum ditinjau oleh pengacara tenaga kerja/imigrasi (lihat docs/document-catalog.md). hired（採用）確定時のみ生成される。/ Generated only when the outcome is hired. / Dibuat hanya saat hasil adalah diterima kerja."
+}

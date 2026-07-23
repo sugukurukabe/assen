@@ -52,6 +52,30 @@ export const goldenPromptFixtures: GoldenPromptFixture[] = [
     expectedToolNames: ["document.record_delivery"],
   },
   { id: "direct-supersede", category: "direct", prompt: "この書類を差し替えてください。", expectedToolNames: ["document.supersede"] },
+  {
+    id: "direct-job-seeker-confirm",
+    category: "direct",
+    prompt: "この求職者情報を求職者台帳へ登録してください。",
+    expectedToolNames: ["job_seeker.confirm"],
+  },
+  {
+    id: "direct-job-order-referral-confirm",
+    category: "direct",
+    prompt: "この求人と求職者の紹介行を登録してください。",
+    expectedToolNames: ["job_order_referral.confirm"],
+  },
+  {
+    id: "direct-placement-confirm",
+    category: "direct",
+    prompt: "この案件の採否を登録してください。",
+    expectedToolNames: ["placement.confirm"],
+  },
+  {
+    id: "direct-placement-record-rejection-reason",
+    category: "direct",
+    prompt: "不採用理由を記録してください。",
+    expectedToolNames: ["placement.record_rejection_reason"],
+  },
 
   // --- 間接指示 / Indirect instructions / Instruksi tidak langsung ---
   {
@@ -119,6 +143,30 @@ export const goldenPromptFixtures: GoldenPromptFixture[] = [
     category: "indirect",
     prompt: "内容に誤りがあったので、訂正版を作ってもらえますか？",
     expectedToolNames: ["document.supersede"],
+  },
+  {
+    id: "indirect-job-seeker-confirm",
+    category: "indirect",
+    prompt: "この方の求職者情報、そろそろ求職者台帳へ載せておいてもらえますか？",
+    expectedToolNames: ["job_seeker.confirm"],
+  },
+  {
+    id: "indirect-job-order-referral-confirm",
+    category: "indirect",
+    prompt: "求人と求職者の紹介行、そろそろ紹介欄に載せておいてもらえますか？",
+    expectedToolNames: ["job_order_referral.confirm"],
+  },
+  {
+    id: "indirect-placement-confirm",
+    category: "indirect",
+    prompt: "この案件、採否の結果が出たので登録しておいてもらえますか？",
+    expectedToolNames: ["placement.confirm"],
+  },
+  {
+    id: "indirect-placement-record-rejection-reason",
+    category: "indirect",
+    prompt: "先方から不採用理由の回答が来たので、記録しておいてもらえますか？",
+    expectedToolNames: ["placement.record_rejection_reason"],
   },
 
   // --- 否定形（「〜しないで」）/ Negative-form instructions / Instruksi bentuk negatif ---
@@ -189,6 +237,34 @@ export const goldenPromptFixtures: GoldenPromptFixture[] = [
     id: "negative-preview",
     category: "negative",
     prompt: "プレビューはまだ確認しないでください。",
+    expectedToolNames: [],
+    expectNoToolCall: true,
+  },
+  {
+    id: "negative-job-seeker-confirm",
+    category: "negative",
+    prompt: "この求職者情報はまだ求職者台帳へ登録しないでください。",
+    expectedToolNames: [],
+    expectNoToolCall: true,
+  },
+  {
+    id: "negative-job-order-referral-confirm",
+    category: "negative",
+    prompt: "紹介行はまだ紹介欄に登録しないでください。",
+    expectedToolNames: [],
+    expectNoToolCall: true,
+  },
+  {
+    id: "negative-placement-confirm",
+    category: "negative",
+    prompt: "採否はまだ登録しないでください。",
+    expectedToolNames: [],
+    expectNoToolCall: true,
+  },
+  {
+    id: "negative-placement-record-rejection-reason",
+    category: "negative",
+    prompt: "不採用理由はまだ記録しないでください。",
     expectedToolNames: [],
     expectNoToolCall: true,
   },

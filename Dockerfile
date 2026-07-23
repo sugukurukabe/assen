@@ -67,11 +67,14 @@ COPY legal ./legal
 CMD ["pnpm", "run", "db:migrate"]
 
 # ---- outbox-worker: transactional outboxの常駐ポーリングworker。legal/は不要（documents/templatesを扱わないため）。
-# ⚠️ M1時点ではeventType handlerが未登録。M2でhandlerを登録するまで本番スケジューラへ接続しないこと（src/services/outbox-worker/run.ts参照）
+# document.approval_requestedのSlack通知handlerを登録済み（src/services/outbox-worker/run.ts参照）。本番Cloud Runでは
+# HTTPポートを開かない常駐pull型処理のため、Cloud Run ServicesではなくWorker Poolsとして運用する（docs/ops-runbook.md参照）
 # ---- outbox-worker: long-running poller for the transactional outbox. legal/ is not needed (does not handle documents/templates).
-# ⚠️ As of M1 no eventType handlers are registered. Do not wire this into a production scheduler until M2 registers handlers (see src/services/outbox-worker/run.ts)
+# The Slack notification handler for document.approval_requested is registered (see src/services/outbox-worker/run.ts).
+# In production this runs as a Cloud Run Worker Pool, not a Service, since it never opens an HTTP port (docs/ops-runbook.md)
 # ---- outbox-worker: poller yang berjalan terus untuk transactional outbox. legal/ tidak diperlukan (tidak menangani documents/templates).
-# ⚠️ Pada M1 belum ada handler eventType yang terdaftar. Jangan hubungkan ini ke scheduler produksi sampai M2 mendaftarkan handler (lihat src/services/outbox-worker/run.ts)
+# Handler notifikasi Slack untuk document.approval_requested sudah terdaftar (lihat src/services/outbox-worker/run.ts).
+# Di produksi ini berjalan sebagai Cloud Run Worker Pool, bukan Service, karena tidak pernah membuka port HTTP (docs/ops-runbook.md)
 FROM node:20-alpine AS outbox-worker
 ENV NODE_ENV=production
 WORKDIR /app

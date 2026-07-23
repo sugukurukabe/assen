@@ -8,7 +8,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ServiceContext } from "../protocol/service-context.js";
-import { dispatchAssignments, jobOrders } from "../db/schema/ledgers.js";
+import { dispatchAssignments, jobOrderReferrals, jobOrders } from "../db/schema/ledgers.js";
 import { evaluateSubjectCompliance } from "../services/rules/evaluate-subject.js";
 import { overallResult } from "../services/rules/five-value-result.js";
 import { getDocTypeDefinition, SUPPORTED_DOC_TYPES } from "../services/documents/doc-type-registry.js";
@@ -16,7 +16,7 @@ import { toToolErrorResult, toToolResult } from "./common-envelope.js";
 import { logMessage } from "../lib/logger.js";
 import { UserInputError } from "../lib/errors.js";
 
-const SUPPORTED_SUBJECT_TYPES = ["job_order", "dispatch_assignment"] as const;
+const SUPPORTED_SUBJECT_TYPES = ["job_order", "dispatch_assignment", "job_order_referral"] as const;
 
 const inputSchema = {
   subjectType: z.enum(SUPPORTED_SUBJECT_TYPES).describe("判定対象の種別 / Subject type to evaluate / Jenis subjek yang dievaluasi"),
@@ -25,7 +25,7 @@ const inputSchema = {
     .enum(SUPPORTED_DOC_TYPES)
     .optional()
     .describe(
-      "subjectType=dispatch_assignmentの場合に必須。どの書類（A2/A3/A10/labor_conditions_notice）を基準に必須項目を判定するか指定する / Required when subjectType=dispatch_assignment. Selects which document's required-field set (A2/A3/A10/labor_conditions_notice) to judge against / Wajib saat subjectType=dispatch_assignment. Memilih set field wajib dokumen mana (A2/A3/A10/labor_conditions_notice) yang menjadi acuan penilaian",
+      "subjectType=dispatch_assignment/job_order_referralの場合に必須。どの書類を基準に必須項目を判定するか指定する（dispatch_assignment: A2/A3/A10/labor_conditions_notice/⑥、job_order_referral: ④⑤⑦⑧⑨） / Required when subjectType=dispatch_assignment/job_order_referral. Selects which document's required-field set to judge against (dispatch_assignment: A2/A3/A10/labor_conditions_notice/⑥; job_order_referral: ④/⑤/⑦/⑧/⑨) / Wajib saat subjectType=dispatch_assignment/job_order_referral. Memilih set field wajib dokumen mana yang menjadi acuan penilaian (dispatch_assignment: A2/A3/A10/labor_conditions_notice/⑥; job_order_referral: ④/⑤/⑦/⑧/⑨)",
     ),
 };
 
@@ -77,6 +77,28 @@ export function registerComplianceEvaluate(server: McpServer, context: ServiceCo
           if (!row) {
             throw new UserInputError(
               `dispatch_assignment ${args.subjectId} が見つかりません / dispatch_assignment ${args.subjectId} not found`,
+              "subjectIdを確認してください / Please verify the subjectId",
+            );
+          }
+        } else if (args.subjectType === "job_order_referral") {
+          if (!args.docType) {
+            throw new UserInputError(
+              "subjectType=job_order_referralの場合、docTypeが必須です / docType is required when subjectType=job_order_referral",
+              `docTypeに④⑤⑦⑧⑨のいずれかを指定してください（対応済み: ${SUPPORTED_DOC_TYPES.join(", ")}） / Please specify one of ④/⑤/⑦/⑧/⑨ as docType (supported: ${SUPPORTED_DOC_TYPES.join(", ")})`,
+            );
+          }
+          const docTypeDefinition = getDocTypeDefinition(args.docType);
+          if (!docTypeDefinition) {
+            throw new UserInputError(
+              `未対応のdocTypeです / Unsupported docType: ${args.docType}`,
+              `対応済みのdocType: ${SUPPORTED_DOC_TYPES.join(", ")}`,
+            );
+          }
+          mappingFileName = docTypeDefinition.mappingFileName;
+          [row] = await context.db.select().from(jobOrderReferrals).where(eq(jobOrderReferrals.id, args.subjectId));
+          if (!row) {
+            throw new UserInputError(
+              `job_order_referral ${args.subjectId} が見つかりません / job_order_referral ${args.subjectId} not found`,
               "subjectIdを確認してください / Please verify the subjectId",
             );
           }

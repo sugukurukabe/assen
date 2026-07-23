@@ -47,6 +47,10 @@ const TOOL_KEYWORDS: Record<string, string[]> = {
   "document.attach_executed_copy": ["署名済み", "押印済み", "添付"],
   "document.record_delivery": ["交付", "渡した", "送付記録"],
   "document.supersede": ["差し替え", "訂正版", "再発行"],
+  "job_seeker.confirm": ["求職者情報", "求職者台帳"],
+  "job_order_referral.confirm": ["紹介行", "紹介欄"],
+  "placement.confirm": ["採否", "採用可否"],
+  "placement.record_rejection_reason": ["不採用理由", "理由を記録"],
 };
 
 function containsNegationCue(prompt: string): boolean {

@@ -36,6 +36,13 @@ function baseEnv(overrides: Partial<AssenEnv>): AssenEnv {
     CORS_ALLOWED_ORIGINS: "",
     SERVER_CARD_REPOSITORY_URL: "",
     SERVER_CARD_CONTACT_URL: "",
+    SLACK_BOT_TOKEN: "",
+    SLACK_APPROVAL_CHANNEL_ID: "",
+    GOOGLE_OAUTH_CLIENT_ID: "",
+    TOKEN_EXCHANGE_ALLOWLIST_JSON: "[]",
+    TOKEN_EXCHANGE_ISSUER: "https://assen.internal/token-exchange",
+    TOKEN_EXCHANGE_TOKEN_TTL_SECONDS: 3600,
+    TOKEN_EXCHANGE_SIGNING_PRIVATE_KEY_JWK: "",
     ...overrides,
   };
 }

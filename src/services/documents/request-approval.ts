@@ -13,6 +13,7 @@ import * as schema from "../../db/schema/index.js";
 import { approvalRequests, documents } from "../../db/schema/documents.js";
 import { assertContentTransition } from "./state-machine.js";
 import { appendAuditEvent } from "../../audit/hash-chain.js";
+import { enqueueOutboxEvent } from "../outbox-worker/enqueue.js";
 import { UserInputError } from "../../lib/errors.js";
 import type { AuthenticatedPrincipal } from "../../lib/auth.js";
 
@@ -84,6 +85,28 @@ export async function requestDocumentApproval(db: Db, input: RequestApprovalInpu
       afterHash: document.generatedSha256,
       principal: input.principal,
       requestId: input.requestId,
+    });
+
+    // Slack承認通知handler向け。hash/nonceなど機微情報はpayloadに含めない（自社MVPゲート、docs/registry-readiness-checklist.md G節）
+    // For the Slack approval-notification handler. Deliberately excludes sensitive fields like hash/nonce from the payload (internal-MVP gate, checklist section G)
+    // Untuk handler notifikasi Slack. Sengaja tidak menyertakan field sensitif seperti hash/nonce di payload (gate MVP internal, bagian G checklist)
+    await enqueueOutboxEvent(tx, {
+      tenantId: input.tenantId,
+      aggregateType: "document",
+      aggregateId: document.id,
+      eventType: "document.approval_requested",
+      payload: {
+        approvalRequestId,
+        documentId: document.id,
+        docType: document.docType,
+        subjectType: document.subjectType,
+        subjectId: document.subjectId,
+        requiredRole: input.requiredRole,
+        requestedBy: input.principal.principalId,
+        expiresAt: expiresAt.toISOString(),
+      },
+      idempotencyKey: approvalRequestId,
+      externalReference: approvalRequestId,
     });
 
     return { approvalRequestId, nonce, expiresAt };

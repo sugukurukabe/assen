@@ -26,7 +26,7 @@
 import { eq } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "../../db/schema/index.js";
-import { dispatchAssignments, jobOrders } from "../../db/schema/ledgers.js";
+import { dispatchAssignments, jobOrderReferrals, jobOrders } from "../../db/schema/ledgers.js";
 
 type Db = NodePgDatabase<typeof schema>;
 
@@ -46,6 +46,10 @@ export async function loadSubjectRow(db: Db, subjectType: string, subjectId: str
   }
   if (subjectType === "dispatch_assignment") {
     const [row] = await db.select().from(dispatchAssignments).where(eq(dispatchAssignments.id, subjectId));
+    return row;
+  }
+  if (subjectType === "job_order_referral") {
+    const [row] = await db.select().from(jobOrderReferrals).where(eq(jobOrderReferrals.id, subjectId));
     return row;
   }
   return undefined;

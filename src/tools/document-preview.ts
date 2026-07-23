@@ -8,7 +8,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ServiceContext } from "../protocol/service-context.js";
 import { previewDocument } from "../services/documents/preview.js";
-import { SUPPORTED_DOC_TYPES } from "../services/documents/doc-type-registry.js";
+import { getDocTypeDefinition, SUPPORTED_DOC_TYPES } from "../services/documents/doc-type-registry.js";
 import { overallResult } from "../services/rules/five-value-result.js";
 import { toToolErrorResult, toToolResult } from "./common-envelope.js";
 import { UserInputError } from "../lib/errors.js";
@@ -21,7 +21,12 @@ const inputSchema = {
     .describe(
       "プレビュー対象の書類種別（docs/document-catalog.md参照）。未指定時はM1既定のlabor_conditions_notice / Document type to preview (see docs/document-catalog.md). Defaults to labor_conditions_notice / Jenis dokumen yang di-preview (lihat docs/document-catalog.md). Default ke labor_conditions_notice",
     ),
-  dispatchAssignmentId: z.string().uuid().describe("対象となる派遣就業ID / Target dispatch assignment id / ID penugasan dispatch target"),
+  subjectId: z
+    .string()
+    .uuid()
+    .describe(
+      "対象ID（docTypeのsubjectTypeにより派遣就業IDまたは紹介行IDのいずれか） / Target subject id (dispatch assignment id or referral id, depending on the docType's subjectType) / ID subjek target (id penugasan dispatch atau id rujukan, sesuai subjectType docType)",
+    ),
 };
 
 export function registerDocumentPreview(server: McpServer, context: ServiceContext): void {
@@ -30,7 +35,7 @@ export function registerDocumentPreview(server: McpServer, context: ServiceConte
     {
       title: "書類の生成前プレビューを表示する",
       description:
-        "指定したdocTypeの生成前プレビューを返す。差込値・出典・法定必須項目の充足状況を確認できる。DBは変更しない。 / Returns a pre-generation preview of the given docType: merged values, provenance, and legal-field completeness. Never mutates the DB. / Mengembalikan preview sebelum generate untuk docType yang diberikan: nilai gabungan, provenance, dan kelengkapan field hukum. Tidak pernah mengubah DB.",
+        "指定したdocTypeの生成前プレビューを返す。差込値・出典・法定必須項目の充足状況を確認できる。subjectIdはdocTypeのsubjectTypeにより派遣就業ID（dispatch_assignment）または紹介行ID（job_order_referral）を指定する。DBは変更しない。 / Returns a pre-generation preview of the given docType: merged values, provenance, and legal-field completeness. subjectId is either a dispatch assignment id or a referral id, depending on the docType's subjectType. Never mutates the DB. / Mengembalikan preview sebelum generate untuk docType yang diberikan: nilai gabungan, provenance, dan kelengkapan field hukum. subjectId adalah id penugasan dispatch atau id rujukan, sesuai subjectType docType. Tidak pernah mengubah DB.",
       inputSchema,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
@@ -39,18 +44,18 @@ export function registerDocumentPreview(server: McpServer, context: ServiceConte
         const result = await previewDocument(context.db, {
           tenantId: context.principal.tenantId,
           docType: args.docType,
-          dispatchAssignmentId: args.dispatchAssignmentId,
+          subjectId: args.subjectId,
         });
 
         return toToolResult({
           operationId: randomUUID(),
-          subjectId: args.dispatchAssignmentId,
+          subjectId: args.subjectId,
           subjectVersion: 1,
           status: overallResult(result.findings),
           missingFields: result.findings.flatMap((finding) => finding.missingFields),
           findings: result.findings,
           renderedPreview: result.renderedText,
-          evidenceRefs: [`assen://audit/dispatch_assignment/${args.dispatchAssignmentId}`],
+          evidenceRefs: [`assen://audit/${getDocTypeDefinition(args.docType)?.subjectType ?? args.docType}/${args.subjectId}`],
           nextActions:
             overallResult(result.findings) === "pass"
               ? ["document.generate_draftでドラフトを生成してください"]

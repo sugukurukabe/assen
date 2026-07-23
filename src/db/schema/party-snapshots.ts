@@ -12,6 +12,7 @@ export const takenReasonEnum = pgEnum("snapshot_taken_reason", [
   "job_order_accept",
   "contract_approve",
   "placement_confirm",
+  "job_seeker_accept",
 ]);
 
 export const partySnapshots = pgTable("party_snapshots", {

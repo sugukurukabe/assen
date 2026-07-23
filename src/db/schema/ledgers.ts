@@ -53,7 +53,9 @@ export const jobOrderReferrals = pgTable("job_order_referrals", {
   jobOrderId: uuid("job_order_id")
     .notNull()
     .references(() => jobOrders.id),
-  jobSeekerId: text("job_seeker_id").notNull(),
+  jobSeekerId: uuid("job_seeker_id")
+    .notNull()
+    .references(() => jobSeekers.id),
   referredAt: date("referred_at").notNull(),
   outcome: referralOutcomeEnum("outcome").notNull().default("pending"),
   hiredAt: date("hired_at"),
@@ -66,6 +68,11 @@ export const jobOrderReferrals = pgTable("job_order_referrals", {
   type: referralTypeEnum("type").notNull(),
   phase: referralPhaseEnum("phase"),
   dispatchAssignmentId: uuid("dispatch_assignment_id"),
+  // ④⑤⑦書類（求人条件明示書・本人同意書・転換条件覚書）差込用の法定項目superset / Superset of statutory items for documents ④⑤⑦ (job-order notice, consent form, conversion memo) / Superset item wajib untuk dokumen ④⑤⑦ (pemberitahuan lowongan, formulir persetujuan, memo konversi)
+  conditionsTyped: jsonb("conditions_typed"),
+  // 不採用理由チェーン（⑧の回答を記録し、⑨明示の根拠とする） / Non-hire reason chain (records the ⑧ reply as the basis for ⑨ disclosure) / Rantai alasan tidak diterima (mencatat balasan ⑧ sebagai dasar pengungkapan ⑨)
+  rejectionReason: text("rejection_reason"),
+  rejectionReasonReceivedAt: date("rejection_reason_received_at"),
   createdAt: createdAtColumn(),
   updatedAt: updatedAtColumn(),
 });

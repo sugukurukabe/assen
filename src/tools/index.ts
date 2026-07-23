@@ -16,6 +16,10 @@ import { registerDocumentApprove } from "./document-approve.js";
 import { registerDocumentAttachExecutedCopy } from "./document-attach-executed-copy.js";
 import { registerDocumentRecordDelivery } from "./document-record-delivery.js";
 import { registerDocumentSupersede } from "./document-supersede.js";
+import { registerJobSeekerConfirm } from "./job-seeker-confirm.js";
+import { registerJobOrderReferralConfirm } from "./job-order-referral-confirm.js";
+import { registerPlacementConfirm } from "./placement-confirm.js";
+import { registerRecordRejectionReason } from "./record-rejection-reason.js";
 
 export function registerAllTools(server: McpServer, context: ServiceContext): void {
   registerJobOrderAnalyze(server, context);
@@ -29,4 +33,8 @@ export function registerAllTools(server: McpServer, context: ServiceContext): vo
   registerDocumentAttachExecutedCopy(server, context);
   registerDocumentRecordDelivery(server, context);
   registerDocumentSupersede(server, context);
+  registerJobSeekerConfirm(server, context);
+  registerJobOrderReferralConfirm(server, context);
+  registerPlacementConfirm(server, context);
+  registerRecordRejectionReason(server, context);
 }

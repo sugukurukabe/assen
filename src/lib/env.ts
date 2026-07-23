@@ -80,6 +80,36 @@ const envSchema = z.object({
   // URL repository/contact yang dipublikasikan di Server Card (/.well-known/mcp.json). Dibiarkan null jika tidak diatur, daripada membuat URL palsu
   SERVER_CARD_REPOSITORY_URL: z.string().optional().default(""),
   SERVER_CARD_CONTACT_URL: z.string().optional().default(""),
+  // SLACK_BOT_TOKEN/SLACK_APPROVAL_CHANNEL_ID: document.approval_requestedのoutbox handlerがSlackへ承認依頼を通知するための設定。
+  // どちらか未設定ならSlackへ送信せずログ出力のみに留める（ローカル開発・テストでネットワーク呼び出しを強制しないため）
+  // SLACK_BOT_TOKEN/SLACK_APPROVAL_CHANNEL_ID: settings the document.approval_requested outbox handler uses to notify
+  // Slack of approval requests. If either is unset, the handler logs instead of posting (so local dev/tests never
+  // require a network call)
+  // SLACK_BOT_TOKEN/SLACK_APPROVAL_CHANNEL_ID: setelan yang dipakai handler outbox document.approval_requested untuk
+  // memberi tahu Slack tentang permintaan persetujuan. Jika salah satu tidak diatur, handler hanya mencatat log
+  // (agar dev/test lokal tidak pernah memerlukan panggilan jaringan)
+  SLACK_BOT_TOKEN: z.string().optional().default(""),
+  SLACK_APPROVAL_CHANNEL_ID: z.string().optional().default(""),
+  // トークン交換層（Google IDトークン→Assen audience JWT、自社MVPゲート・docs/registry-readiness-checklist.md G節）。
+  // GOOGLE_OAUTH_CLIENT_IDが未設定なら機能全体を無効化する（/oauth/token-exchange・/oauth/jwks.jsonは404を返す）
+  // Token-exchange layer (Google ID token -> Assen audience JWT; internal-MVP gate, checklist section G).
+  // The entire feature is disabled when GOOGLE_OAUTH_CLIENT_ID is unset (/oauth/token-exchange and /oauth/jwks.json return 404)
+  // Lapisan token exchange (Google ID token -> JWT audience Assen; gate MVP internal, bagian G checklist).
+  // Seluruh fitur nonaktif saat GOOGLE_OAUTH_CLIENT_ID tidak diatur (/oauth/token-exchange dan /oauth/jwks.json mengembalikan 404)
+  GOOGLE_OAUTH_CLIENT_ID: z.string().optional().default(""),
+  // email→role/tenantIdのallowlist（JSON配列）。例: [{"email":"kabe@sugu-kuru.co.jp","role":"admin","tenantId":"00000000-..."}]
+  // Allowlist mapping email -> role/tenantId (JSON array). Example above
+  TOKEN_EXCHANGE_ALLOWLIST_JSON: z.string().optional().default("[]"),
+  // 発行するJWTのiss claim。OAUTH_ISSUERと一致させる（同じ値をverifyOAuthBearerTokenの検証にも使う）
+  // The iss claim of issued JWTs. Must match OAUTH_ISSUER (the same value verifyOAuthBearerToken validates against)
+  TOKEN_EXCHANGE_ISSUER: z.string().optional().default("https://assen.internal/token-exchange"),
+  TOKEN_EXCHANGE_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(3600),
+  // 署名鍵（ES256 private JWK、JSON文字列）。未設定ならプロセス起動ごとに使い捨て鍵を生成する（再起動で既発行トークンが無効化される）。
+  // 本番はSecret Managerで固定鍵を設定すること（assertProductionSafetyが強制する）
+  // Signing key (ES256 private JWK, JSON string). If unset, an ephemeral key is generated per process start
+  // (restarts invalidate previously issued tokens). Production must set a persistent key via Secret Manager
+  // (enforced by assertProductionSafety)
+  TOKEN_EXCHANGE_SIGNING_PRIVATE_KEY_JWK: z.string().optional().default(""),
 });
 
 export type AssenEnv = z.infer<typeof envSchema>;
@@ -124,6 +154,11 @@ export function assertProductionSafety(env: AssenEnv): void {
   }
   if (!env.PII_ENCRYPTION_KEY) {
     violations.push("PII_ENCRYPTION_KEYが未設定です / PII_ENCRYPTION_KEY is not set");
+  }
+  if (env.GOOGLE_OAUTH_CLIENT_ID && !env.TOKEN_EXCHANGE_SIGNING_PRIVATE_KEY_JWK) {
+    violations.push(
+      "トークン交換を有効にする場合はTOKEN_EXCHANGE_SIGNING_PRIVATE_KEY_JWKが必須です（未設定だと再起動毎に鍵が変わり、発行済みトークンが全て無効化されます） / TOKEN_EXCHANGE_SIGNING_PRIVATE_KEY_JWK is required whenever token exchange is enabled (otherwise the key changes on every restart, invalidating all previously issued tokens)",
+    );
   }
   if (violations.length > 0) {
     throw new Error(`本番起動を拒否しました / Refused to start in production: ${violations.join(" / ")}`);

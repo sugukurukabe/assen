@@ -1,0 +1,42 @@
+{
+  "docType": "t2p_non_hire_reason_notice",
+  "docTypeLabel": "不採用理由通知書（⑨） / Written notice of non-hire reason (⑨) / Pemberitahuan tertulis alasan tidak diterima (⑨)",
+  "table": "jobOrderReferrals",
+  "jsonColumn": "conditionsTyped",
+  "zodSchemaModule": "src/domain/t2p-non-hire-reason-notice.ts",
+  "zodSchemaExport": "t2pNonHireReasonNoticeSchema",
+  "legalBasis": "職業安定法第5条の3第3項の趣旨に基づく運用",
+  "items": [
+    {
+      "legalItem": "対象派遣労働者",
+      "dbColumn": "conditionsTyped.staffName",
+      "outputField": "対象派遣労働者"
+    },
+    {
+      "legalItem": "受入企業",
+      "dbColumn": "conditionsTyped.clientName",
+      "outputField": "受入企業"
+    },
+    {
+      "legalItem": "該当区分",
+      "dbColumn": "conditionsTyped.nonHireCategory",
+      "outputField": "該当区分"
+    },
+    {
+      "legalItem": "明示された理由（placement.record_rejection_reasonのtyped column）",
+      "dbColumn": "rejectionReason",
+      "outputField": "明示理由"
+    },
+    {
+      "legalItem": "通知日",
+      "dbColumn": "conditionsTyped.noticeDate",
+      "outputField": "通知日"
+    },
+    {
+      "legalItem": "通知方法",
+      "dbColumn": "conditionsTyped.noticeMethod",
+      "outputField": "通知方法"
+    }
+  ],
+  "notes": "テンプレートは~/Downloads配下の社外・未レビューDOCXテンプレを{{field}}差込式に変換したもの。社労士・行政書士による法的レビュー未実施（docs/document-catalog.md参照）。 / Template converted from an external, unreviewed DOCX template under ~/Downloads into {{field}} substitution. Not yet reviewed by a labor/immigration attorney (see docs/document-catalog.md). / Template dikonversi dari template DOCX eksternal yang belum ditinjau di bawah ~/Downloads menjadi substitusi {{field}}. Belum ditinjau oleh pengacara tenaga kerja/imigrasi (lihat docs/document-catalog.md). rejectionReasonはconditionsTyped(JSONB)ではなくjob_order_referralsのtyped column（placement.record_rejection_reasonが記録）を直接参照する。生成前提：rejected確定かつrejectionReason記録済み。/ rejectionReason references the job_order_referrals typed column (recorded by placement.record_rejection_reason) directly, not conditionsTyped (JSONB). Precondition: outcome is rejected and a reason has been recorded. / rejectionReason mereferensikan kolom bertipe job_order_referrals (dicatat oleh placement.record_rejection_reason) secara langsung, bukan conditionsTyped (JSONB). Prasyarat: hasil ditolak dan alasan telah dicatat."
+}

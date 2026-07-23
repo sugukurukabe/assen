@@ -21,7 +21,12 @@ const inputSchema = {
     .describe(
       "生成する書類の種別（docs/document-catalog.md参照）。未指定時はM1既定のlabor_conditions_notice / Document type to generate (see docs/document-catalog.md). Defaults to labor_conditions_notice / Jenis dokumen yang dihasilkan (lihat docs/document-catalog.md). Default ke labor_conditions_notice",
     ),
-  dispatchAssignmentId: z.string().uuid().describe("対象となる派遣就業ID / Target dispatch assignment id / ID penugasan dispatch target"),
+  subjectId: z
+    .string()
+    .uuid()
+    .describe(
+      "対象ID（docTypeのsubjectTypeにより派遣就業IDまたは紹介行IDのいずれか） / Target subject id (dispatch assignment id or referral id, depending on the docType's subjectType) / ID subjek target (id penugasan dispatch atau id rujukan, sesuai subjectType docType)",
+    ),
   idempotencyKey: z.string().min(1).describe("冪等キー / Idempotency key / Kunci idempotensi"),
   reason: z.string().min(1).describe("生成理由 / Reason for generation / Alasan pembuatan"),
 };
@@ -32,7 +37,7 @@ export function registerDocumentGenerateDraft(server: McpServer, context: Servic
     {
       title: "派遣関連書類のドラフトを生成する",
       description:
-        "指定したdocType（labor_conditions_notice/dispatch_individual_contract/dispatch_working_conditions_notice/dispatch_worker_notice）のドラフトをテンプレートから生成し、GCS/MinIOへcontent-addressableに保存する。content_statusはdraftになる。 / Generates a draft of the given docType from its template and stores it content-addressably. content_status becomes draft. / Menghasilkan draft docType yang diberikan dari templatenya dan menyimpannya secara content-addressable. content_status menjadi draft.",
+        "指定したdocType（labor_conditions_notice/dispatch_individual_contract/dispatch_working_conditions_notice/dispatch_worker_notice/t2p_job_order_notice/t2p_consent_form/t2p_individual_contract/t2p_conversion_memo/t2p_non_hire_reason_request/t2p_non_hire_reason_notice）のドラフトをテンプレートから生成し、GCS/MinIOへcontent-addressableに保存する。subjectIdはdocTypeのsubjectTypeにより派遣就業ID（dispatch_assignment）または紹介行ID（job_order_referral）を指定する。content_statusはdraftになる。 / Generates a draft of the given docType from its template and stores it content-addressably. subjectId is either a dispatch assignment id or a referral id, depending on the docType's subjectType. content_status becomes draft. / Menghasilkan draft docType yang diberikan dari templatenya dan menyimpannya secara content-addressable. subjectId adalah id penugasan dispatch atau id rujukan, sesuai subjectType docType. content_status menjadi draft.",
       inputSchema,
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
@@ -43,7 +48,7 @@ export function registerDocumentGenerateDraft(server: McpServer, context: Servic
         const result = await generateDocumentDraft(context.db, {
           tenantId: context.principal.tenantId,
           docType: args.docType,
-          dispatchAssignmentId: args.dispatchAssignmentId,
+          subjectId: args.subjectId,
           principal: context.principal,
           requestId: context.requestId,
           idempotencyKey: args.idempotencyKey,
