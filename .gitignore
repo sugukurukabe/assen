@@ -10,3 +10,6 @@ src/apps/approval-ui/node_modules/
 # ローカルのバックアップ・復元ドリル用ダンプ（本番の秘密情報を含む可能性があるためcommitしない）
 # Local backup/restore-drill dumps (may contain production-like secrets; never commit)
 backups/
+
+# cookbook-scout local candidates
+.cookbook-candidates/
