@@ -94,6 +94,18 @@ jobs:
           docker logs assen-ci-minio
           exit 1
 
+      # STORAGE_BUCKETは通常サーバー起動時（server.ts のensureBucketExists()）にのみ作成されるため、
+      # HTTPサーバーを起動しないテスト実行では存在せずNoSuchBucketになる。CIのMinIOにはここで明示的に作成する
+      # STORAGE_BUCKET is normally only created when the server boots (server.ts's ensureBucketExists()), so test
+      # runs that never boot the server hit NoSuchBucket. Explicitly create it here for CI's MinIO
+      # STORAGE_BUCKET biasanya hanya dibuat saat server start (ensureBucketExists() milik server.ts), jadi run
+      # test yang tidak menjalankan server akan gagal dengan NoSuchBucket. Buat secara eksplisit di sini untuk MinIO CI
+      - name: バケットを作成 / Create the bucket / Buat bucket
+        run: |
+          docker run --rm --network host \
+            -e MC_HOST_local=http://assen:assen_ci_only_secret@localhost:9000 \
+            minio/mc mb --ignore-existing local/assen-documents
+
       # CIごとに使い捨てのPII_ENCRYPTION_KEYをその場で生成する（コードやリポジトリに固定値を置かない）
       # Generates a disposable PII_ENCRYPTION_KEY per run on the fly (never a fixed value committed to the repo)
       # Menghasilkan PII_ENCRYPTION_KEY sekali pakai secara langsung per run (tidak pernah nilai tetap yang di-commit ke repo)
