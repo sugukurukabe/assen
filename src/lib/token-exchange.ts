@@ -140,26 +140,27 @@ export interface TokenExchangeResult {
   expiresIn: number;
 }
 
+export interface AllowlistedGooglePrincipal {
+  email: string;
+  role: TokenExchangeAllowlistEntry["role"];
+  tenantId: string;
+}
+
 /**
- * Google IDトークンを検証し、allowlistに登録済みのemailであればAssen専用クレーム付きJWTを発行する
- * Verifies a Google ID token and, when its email is on the allowlist, issues a JWT carrying Assen's own claims
- * Memverifikasi token ID Google, dan jika emailnya ada di allowlist, menerbitkan JWT yang membawa klaim milik Assen
+ * Google IDトークンを検証し、allowlist登録済みprincipalへ変換する
+ * Verifies a Google ID token and maps it to an allowlisted principal
+ * Memverifikasi token ID Google dan memetakannya ke principal yang ada di allowlist
  */
-export async function exchangeGoogleIdTokenForAssenToken(
+export async function verifyGoogleIdTokenForAllowlistedPrincipal(
   googleIdToken: string,
-  // テスト専用: 実ネットワークJWKS取得の代わりにcreateLocalJWKSetを注入できるようにする（test/oauth-auth.test.tsと同じパターン）
-  // Test-only: allows injecting createLocalJWKSet instead of the real network JWKS fetch (same pattern as test/oauth-auth.test.ts)
   overrideGoogleJwks?: JWTVerifyGetKey,
-): Promise<TokenExchangeResult> {
+): Promise<AllowlistedGooglePrincipal> {
   const env = loadEnv();
   if (!isTokenExchangeEnabled()) {
     throw new UserInputError(
       "トークン交換は無効です / Token exchange is disabled",
       "サーバー管理者にGOOGLE_OAUTH_CLIENT_IDの設定を依頼してください / Ask the server administrator to set GOOGLE_OAUTH_CLIENT_ID",
     );
-  }
-  if (!env.OAUTH_AUDIENCE) {
-    throw new Error("OAUTH_AUDIENCEが未設定です（発行するJWTのaudienceに使うため必須） / OAUTH_AUDIENCE is required to issue the JWT's audience claim");
   }
 
   let googlePayload;
@@ -198,23 +199,58 @@ export async function exchangeGoogleIdTokenForAssenToken(
     );
   }
 
+  return { email, role: entry.role, tenantId: entry.tenantId };
+}
+
+/**
+ * allowlist済みprincipalに対してAssen audience JWTを発行する
+ * Issues an Assen-audience JWT for an allowlisted principal
+ * Menerbitkan JWT audience Assen untuk principal yang sudah di-allowlist
+ */
+export async function issueAssenTokenForAllowlistedPrincipal(
+  principal: AllowlistedGooglePrincipal,
+): Promise<TokenExchangeResult> {
+  const env = loadEnv();
+  if (!env.OAUTH_AUDIENCE) {
+    throw new Error("OAUTH_AUDIENCEが未設定です（発行するJWTのaudienceに使うため必須） / OAUTH_AUDIENCE is required to issue the JWT's audience claim");
+  }
+
   const { privateKey, publicJwk } = await getSigningKeyPair();
   const ttlSeconds = env.TOKEN_EXCHANGE_TOKEN_TTL_SECONDS;
   const nowSeconds = Math.floor(Date.now() / 1000);
 
   const accessToken = await new SignJWT({
-    [env.OAUTH_ROLE_CLAIM]: entry.role,
-    [env.OAUTH_TENANT_CLAIM]: entry.tenantId,
+    [env.OAUTH_ROLE_CLAIM]: principal.role,
+    [env.OAUTH_TENANT_CLAIM]: principal.tenantId,
   })
     .setProtectedHeader({ alg: SIGNING_ALG, kid: publicJwk.kid })
-    .setSubject(email)
+    .setSubject(principal.email)
     .setIssuer(env.TOKEN_EXCHANGE_ISSUER)
     .setAudience(env.OAUTH_AUDIENCE)
     .setIssuedAt(nowSeconds)
     .setExpirationTime(nowSeconds + ttlSeconds)
     .sign(privateKey);
 
-  logMessage("info", "トークン交換に成功しました / token exchange succeeded", { email, role: entry.role, tenantId: entry.tenantId });
+  logMessage("info", "Assen JWTを発行しました / issued an Assen JWT", {
+    email: principal.email,
+    role: principal.role,
+    tenantId: principal.tenantId,
+  });
 
   return { accessToken, tokenType: "Bearer", expiresIn: ttlSeconds };
+}
+
+/**
+ * Google IDトークンを検証し、allowlistに登録済みのemailであればAssen専用クレーム付きJWTを発行する
+ * Verifies a Google ID token and, when its email is on the allowlist, issues a JWT carrying Assen's own claims
+ * Memverifikasi token ID Google, dan jika emailnya ada di allowlist, menerbitkan JWT yang membawa klaim milik Assen
+ */
+export async function exchangeGoogleIdTokenForAssenToken(
+  googleIdToken: string,
+  // テスト専用: 実ネットワークJWKS取得の代わりにcreateLocalJWKSetを注入できるようにする（test/oauth-auth.test.tsと同じパターン）
+  // Test-only: allows injecting createLocalJWKSet instead of the real network JWKS fetch (same pattern as test/oauth-auth.test.ts)
+  overrideGoogleJwks?: JWTVerifyGetKey,
+): Promise<TokenExchangeResult> {
+  const principal = await verifyGoogleIdTokenForAllowlistedPrincipal(googleIdToken, overrideGoogleJwks);
+  return issueAssenTokenForAllowlistedPrincipal(principal);
 }

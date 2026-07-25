@@ -72,7 +72,7 @@ curl http://localhost:8080/ready    # {"status":"ready"}（DB接続も確認済�
 
 ### 3.2 AIエージェントから接続する（Cursor / Claude）
 
-AssenはStreamable HTTP transport（`/mcp`）で待ち受けます。**接続方法はエージェントによって設定形式が異なります**（2026-07-24訂正：以前の版ではCursorとClaude Desktopで同じJSON形式を案内していましたが、Claude Desktopの`claude_desktop_config.json`は`url`/`headers`フィールドを受け付けず、設定自体が壊れることが判明したため訂正しました）。
+AssenはStreamable HTTP transport（`/mcp`）で待ち受けます。Claude（Desktop / claude.ai / Cowork）はAssenのOAuth discoveryを自動で読み、Google Workspaceログインへ遷移します。通常運用ではBearer tokenを手で取得・貼り付ける必要はありません。
 
 **Cursor**（`~/.cursor/mcp.json`）：
 
@@ -89,38 +89,34 @@ AssenはStreamable HTTP transport（`/mcp`）で待ち受けます。**接続方
 }
 ```
 
-**Claude Desktop / claude.ai**：`claude_desktop_config.json`に`url`/`headers`を直接書いても認識されず、設定ファイルが壊れる場合があります。代わりに**Settings → Connectors → Add custom connector**（Team/Enterprise管理者は`Admin settings → Connectors`）のUIからURLとRequest headers（`Authorization: Bearer <token>`）を設定してください。詳しい手順は[`docs/claude-quickstart.md`](claude-quickstart.md)を参照してください。
+**Claude Desktop / claude.ai / Cowork（推奨）**：**Settings → Connectors → Add custom connector**（Team/Enterprise管理者は`Admin settings → Connectors`）で、Remote MCP server URLに`https://assen-runtime-000000000000.asia-northeast1.run.app/mcp`を入力します。ClaudeがGoogle Workspaceログインを開き、allowlist登録済みの人だけ接続できます。詳しい手順は[`docs/claude-quickstart.md`](claude-quickstart.md)を参照してください。
 
-**Claude Code（CLI）**の場合は`claude mcp add --transport http assen <url> --header "Authorization: Bearer <token>"`が使えます。
+**Claude Code（CLI）**の場合は、OAuth対応版なら`claude mcp add --transport http assen https://assen-runtime-000000000000.asia-northeast1.run.app/mcp`を使います。使っているバージョンでOAuth callbackがうまく動かない場合だけ、`pnpm run auth:get-token`をfallbackとして使ってください。
 
-- トークンの値は`.env`の`AUTH_LOCAL_TOKEN`（ローカル）または3.3節の`pnpm run auth:get-token`（本番相当）の出力と完全一致させてください（不一致だと401 unauthorizedになります）
+- ローカルCursor検証では`.env`の`AUTH_LOCAL_TOKEN`を使います。本番相当のClaude接続ではOAuth flowを使います
 - トークンはSlack等の平文チャットに貼らないでください。1人1トークンを想定し、共有アカウント運用は避けてください
 
 接続できたか確認するには、エージェントに「Assenで使えるツールを一覧して」と頼むか、`tools/list`を直接呼びます。有料紹介特化後は23個のツール（`inquiry.*`・`job_order.gate_check`/`score`/`list`・`kpi.weekly_summary`等を含む）が返れば接続成功です。対応表は[`docs/paid-placement-workflow.md`](paid-placement-workflow.md)を参照してください。
 
 ### 3.3 本番相当環境（Cloud Run）に接続する — 現状 / Connecting to the production-equivalent (Cloud Run) environment — current status / Terhubung ke lingkungan setara produksi (Cloud Run) — status saat ini
 
-**結論（2026-07-24更新）**：Cloud Run／Cloud SQL／GCS／OAuthトークン交換層は**すべて実際に構築・稼働中で、Google Workspaceログイン→Assen JWT→`tools/list`成功のE2Eテストも通過済み**です（[`docs/ops-runbook.md`](ops-runbook.md)実行結果参照）。
+**結論（2026-07-25更新）**：Cloud Run／Cloud SQL／GCS／OAuth層は稼働中です。新しい主手順は「Claudeに`/mcp` URLを追加→Google Workspaceログイン→allowlist通過→Claudeがrefresh tokenで自動更新」です。
 
 - runtime URL: `https://assen-runtime-000000000000.asia-northeast1.run.app`
 - `GOOGLE_OAUTH_CLIENT_ID`は実際の値を設定済み（`000000000000-REDACTED.apps.googleusercontent.com`）
 - **認証はアプリ層の`AUTH_MODE=oauth`（Bearer JWT検証、`src/lib/auth.ts`）のみ**。Cloud Run自体のIAM認証（`roles/run.invoker`）は`allUsers`に開放済み（`--no-allow-unauthenticated`のままだと、`/oauth/token-exchange`という「まだAssen JWTを持っていない人向けの入口」自体がGoogle Frontendにブロックされて機能しないため）。**ネットワーク層の追加防御（IAP／VPN）は2026-07-24に壁が意図的に見送りを決定**（ドメイン・VPN機器の前提が無いため。[`docs/ops-runbook.md`](ops-runbook.md)8節参照）。**現状の実質的なアクセス制御はTOKEN_EXCHANGE_ALLOWLIST_JSON（許可されたWorkspaceメールのみ）に完全に依存している点を理解した上で利用してください**
 
-**接続手順（実際に動作確認済み）**：
+**接続手順**：
 
-1. リポジトリのルートで`pnpm run auth:get-token`を実行する（初回のみ以下の環境変数が必要。値は壁に確認）：
+1. Claude Settings → Connectors → Add custom connector を開く
+2. Remote MCP server URLに以下を入力する：
    ```bash
-   export GOOGLE_OAUTH_CLIENT_ID="000000000000-REDACTED.apps.googleusercontent.com"
-   export GOOGLE_OAUTH_CLIENT_SECRET="<壁に確認>"
-   export ASSEN_BASE_URL="https://assen-runtime-000000000000.asia-northeast1.run.app"
-   pnpm run auth:get-token
+   https://assen-runtime-000000000000.asia-northeast1.run.app/mcp
    ```
-2. ブラウザが自動で開くので、Google Workspaceアカウントでログインする
-3. ターミナルに出力されたAssenアクセストークン（**8時間有効**。2026-07-24に`TOKEN_EXCHANGE_TOKEN_TTL_SECONDS=28800`へ変更済み、1日の勤務時間をカバーする設定）を、Cursorなら`mcp.json`の`Authorization: Bearer`に、Claudeなら[3.2節](#32-aiエージェントから接続するcursor--claude)の方法で設定する
-4. 自分のemailが`TOKEN_EXCHANGE_ALLOWLIST_JSON`（社内allowlist）に登録されていない場合、「許可されていません」というエラーになります。壁にallowlistへの追加を依頼してください
-5. トークンは8時間で失効するので、切れたら`pnpm run auth:get-token`を再実行してください
+3. Google Workspaceアカウントでログインする
+4. `tools/list`で23個のツールが返れば成功
 
-`client_secret`は現状ローカルスクリプト実行時のみ必要な値で、Assenサーバー自体には保存されません（Google ID Token検証はJWKS署名検証のみで行うため）。Slack等の平文チャットには貼らないでください。
+`pnpm run auth:get-token`はトラブル時だけのfallbackです。通常運用では使いません。
 
 ---
 

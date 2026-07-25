@@ -101,6 +101,10 @@ const envSchema = z.object({
   // Lapisan token exchange (Google ID token -> JWT audience Assen; gate MVP internal, bagian G checklist).
   // Seluruh fitur nonaktif saat GOOGLE_OAUTH_CLIENT_ID tidak diatur (/oauth/token-exchange dan /oauth/jwks.json mengembalikan 404)
   GOOGLE_OAUTH_CLIENT_ID: z.string().optional().default(""),
+  // Google OAuthのauthorization codeをIDトークンへ交換するためのclient secret。手動token交換だけなら未設定でもよい
+  // Client secret used to exchange a Google authorization code for an ID token. Optional for manual token exchange only
+  // Client secret untuk menukar authorization code Google menjadi ID token. Opsional jika hanya memakai token exchange manual
+  GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional().default(""),
   // email→role/tenantIdのallowlist（JSON配列）。例: [{"email":"kabe@sugu-kuru.co.jp","role":"admin","tenantId":"00000000-..."}]
   // Allowlist mapping email -> role/tenantId (JSON array). Example above
   TOKEN_EXCHANGE_ALLOWLIST_JSON: z.string().optional().default("[]"),
@@ -162,6 +166,11 @@ export function assertProductionSafety(env: AssenEnv): void {
   if (env.GOOGLE_OAUTH_CLIENT_ID && !env.TOKEN_EXCHANGE_SIGNING_PRIVATE_KEY_JWK) {
     violations.push(
       "トークン交換を有効にする場合はTOKEN_EXCHANGE_SIGNING_PRIVATE_KEY_JWKが必須です（未設定だと再起動毎に鍵が変わり、発行済みトークンが全て無効化されます） / TOKEN_EXCHANGE_SIGNING_PRIVATE_KEY_JWK is required whenever token exchange is enabled (otherwise the key changes on every restart, invalidating all previously issued tokens)",
+    );
+  }
+  if (env.GOOGLE_OAUTH_CLIENT_ID && !env.GOOGLE_OAUTH_CLIENT_SECRET) {
+    violations.push(
+      "ワンクリックOAuthを有効にする場合はGOOGLE_OAUTH_CLIENT_SECRETが必須です / GOOGLE_OAUTH_CLIENT_SECRET is required for one-click OAuth",
     );
   }
   if (violations.length > 0) {

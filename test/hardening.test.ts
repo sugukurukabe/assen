@@ -40,6 +40,7 @@ function baseEnv(overrides: Partial<AssenEnv>): AssenEnv {
     SLACK_APPROVAL_CHANNEL_ID: "",
     SLACK_KPI_CHANNEL_ID: "",
     GOOGLE_OAUTH_CLIENT_ID: "",
+    GOOGLE_OAUTH_CLIENT_SECRET: "",
     TOKEN_EXCHANGE_ALLOWLIST_JSON: "[]",
     TOKEN_EXCHANGE_ISSUER: "https://assen.internal/token-exchange",
     TOKEN_EXCHANGE_TOKEN_TTL_SECONDS: 3600,

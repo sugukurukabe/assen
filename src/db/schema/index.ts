@@ -12,3 +12,4 @@ export * from "./ledgers.js";
 export * from "./documents.js";
 export * from "./audit.js";
 export * from "./outbox.js";
+export * from "./oauth.js";

@@ -5,6 +5,10 @@ Assenは帳簿①②③とパイプラインの**正本**。ClaudeがSlack投稿
 Assen is the **source of truth** for Ledgers #1/#2/#3 and the pipeline. Claude calls tools from Slack posts (WF-15A/10A/25H).
 Assen adalah **sumber kebenaran** Buku Besar #1/#2/#3 dan pipeline. Claude memanggil tool dari posting Slack (WF-15A/10A/25H).
 
+接続はClaude ConnectorにAssenの`/mcp` URLを追加するだけのワンクリックOAuthを標準手順にする。手動token取得はトラブル時のみ。
+One-click OAuth is the standard connection path: add Assen's `/mcp` URL to Claude Connector. Manual token retrieval is troubleshooting-only.
+OAuth sekali klik adalah prosedur standar: tambahkan URL `/mcp` Assen ke Claude Connector. Pengambilan token manual hanya untuk troubleshooting.
+
 ## 成約パターン P1–P4 / Placement patterns / Pola penempatan
 
 | パターン | 流れ | Assenツール |

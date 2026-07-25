@@ -147,6 +147,7 @@ jobs:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           image: ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/assen/runtime:${{ github.sha }}
           no_traffic: false
+          flags: "--update-secrets=GOOGLE_OAUTH_CLIENT_SECRET=assen-google-oauth-client-secret:latest"
 
   # --------------------------------------------------------------------------
   # Deploy outbox-worker（常駐pollerはCloud Run Servicesではなく公式のWorker Poolsで運用する）
