@@ -58,6 +58,8 @@ async function main(): Promise<void> {
   // Memoll shouldStop di dalam loop memungkinkan SIGTERM/SIGINT berlaku cepat meskipun sedang menunggu interval sleep
   let shouldStop = false;
   let forceExitTimer: NodeJS.Timeout | undefined;
+  let lastDailyMaintenanceDate: string | undefined;
+  let lastMondayKpiDate: string | undefined;
   function shutdown(signal: string): void {
     logMessage("info", `${signal}を受信。outbox workerを停止します / received ${signal}, stopping the outbox worker`);
     shouldStop = true;
@@ -75,13 +77,22 @@ async function main(): Promise<void> {
 
   while (!shouldStop) {
     try {
-      const monday = await enqueueMondayWeeklyKpiIfDue(db);
-      if (monday.enqueued > 0) {
-        logMessage("info", "月曜週次KPIをoutboxへ投入しました / enqueued Monday weekly KPI", monday);
+      const today = new Date().toISOString().slice(0, 10);
+      if (lastMondayKpiDate !== today) {
+        const monday = await enqueueMondayWeeklyKpiIfDue(db);
+        if (monday.enqueued > 0) {
+          logMessage("info", "月曜週次KPIをoutboxへ投入しました / enqueued Monday weekly KPI", monday);
+        }
+        if (monday.enqueued > 0 || new Date().getUTCDay() === 1) {
+          lastMondayKpiDate = today;
+        }
       }
-      const daily = await enqueueDailyMaintenance(db);
-      if (daily.deadlineReminders > 0 || daily.staleInquiriesClosed > 0) {
-        logMessage("info", "日次メンテナンスを実行しました / ran daily maintenance", daily);
+      if (lastDailyMaintenanceDate !== today) {
+        const daily = await enqueueDailyMaintenance(db);
+        if (daily.deadlineReminders > 0 || daily.staleInquiriesClosed > 0) {
+          logMessage("info", "日次メンテナンスを実行しました / ran daily maintenance", daily);
+        }
+        lastDailyMaintenanceDate = today;
       }
       const result = await processOutboxBatchForAllTenants(db, handlers, 10);
       if (result.processed > 0 || result.failed > 0) {
