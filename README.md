@@ -14,11 +14,11 @@ README ini adalah panduan implementasi dengan dokumen desain (`法定書類自�
 
 ## スコープ / Scope / Ruang lingkup
 
-- **対象**: 有料職業紹介（許可番号 46-ユ-000000）・労働者派遣（派46-000000）の法定帳簿・書類（求人管理簿、求職管理簿、労働条件通知書、派遣元管理台帳等）
+- **対象**: 有料職業紹介・労働者派遣の法定帳簿・書類（求人管理簿、求職管理簿、手数料管理簿、労働条件通知書、派遣元管理台帳等）。**有料職業紹介事業部の運用（P1〜P4成約パターン・職安法G1–G6・2段階インテーク・S/Aスコア・週次KPI）に特化**（[`docs/paid-placement-workflow.md`](docs/paid-placement-workflow.md)参照）
 - **非対象**: ビザ・在留書類、e-Gov/ACCORD提出、給与計算・社保、労使協定等の規程系（雛形提供のみ）
-- **現在のマイルストーン**: M1完了。M2 Phase 1（基盤整備＋派遣3点書類A2/A3/A10＋A4台帳）・M2 Phase 2（T2P書類④〜⑨＋採否理由チェーン）着手済み。詳細は[`docs/registry-readiness-checklist.md`](docs/registry-readiness-checklist.md)C節参照
-- In scope: statutory ledgers/documents for licensed job placement and worker dispatch. Out of scope: visa/residence documents, e-Gov/ACCORD filing, payroll/social insurance.
-- Ruang lingkup: buku besar/dokumen wajib untuk penempatan kerja berlisensi dan dispatch tenaga kerja. Di luar ruang lingkup: dokumen visa/residensi, pengajuan e-Gov/ACCORD, penggajian/asuransi sosial.
+- **現在のマイルストーン**: M1/M2書類基盤に加え、紹介ローンチ設計書v1.1向けの事業特化（法務ゲート・スコアリング・インテーク・WF-25H相当成約・週次KPI）を実装済み。公式MCP Registry公開は後回し（backlog）
+- In scope: statutory ledgers/documents for licensed job placement and worker dispatch, specialized for the paid-placement division (P1–P4, ESA gates, two-stage intake, S/A scoring, weekly KPI). Out of scope: visa/residence documents, e-Gov/ACCORD filing, payroll/social insurance.
+- Ruang lingkup: buku besar/dokumen wajib untuk penempatan kerja berlisensi dan dispatch, dikhususkan untuk divisi penyaluran berbayar (P1–P4, gerbang ESA, intake 2 tahap, skor S/A, KPI mingguan). Di luar ruang lingkup: dokumen visa/residensi, pengajuan e-Gov/ACCORD, penggajian/asuransi sosial.
 
 ## アーキテクチャ / Architecture / Arsitektur
 

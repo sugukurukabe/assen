@@ -16,6 +16,7 @@ begin
     'job_orders',
     'job_order_referrals',
     'job_seekers',
+    'inquiries',
     'fee_records',
     'dispatch_assignments',
     'dispatch_ledger_entries',

@@ -121,16 +121,27 @@ export function registerComplianceEvaluate(server: McpServer, context: ServiceCo
           row,
         });
 
+        // 職安法G1–G6を追加判定（紹介ローンチ設計書§03） / Extra ESA G1–G6 findings (Placement Launch Spec §03)
+        const { evaluateEsaGateContext } = await import("../services/rules/esa-gates.js");
+        const esaFindings = await evaluateEsaGateContext(context.db, {
+          jobOrderId: args.subjectType === "job_order" ? args.subjectId : undefined,
+          jobOrderReferralId: args.subjectType === "job_order_referral" ? args.subjectId : undefined,
+        });
+        const allFindings = [...findings, ...esaFindings];
+
         return toToolResult({
           operationId: randomUUID(),
           subjectId: args.subjectId,
           subjectVersion: 1,
-          status: overallResult(findings),
-          missingFields: findings.flatMap((finding) => finding.missingFields),
-          findings,
-          evidenceRefs: [`assen://audit/${args.subjectType}/${args.subjectId}`],
+          status: overallResult(allFindings),
+          missingFields: allFindings.flatMap((finding) => finding.missingFields),
+          findings: allFindings,
+          evidenceRefs: [
+            `assen://audit/${args.subjectType}/${args.subjectId}`,
+            "assen://legal-rules/esa-gates/v1",
+          ],
           nextActions:
-            overallResult(findings) === "pass"
+            overallResult(allFindings) === "pass"
               ? ["document.previewで書類プレビューを確認してください"]
               : ["専門家（社労士・弁護士）にご相談ください。findingsの内容を確認し、不足事項を解消してください"],
         });

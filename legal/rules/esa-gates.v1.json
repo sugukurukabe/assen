@@ -1,0 +1,52 @@
+{
+  "ruleKey": "esa-gates",
+  "version": "v1",
+  "title": "職業安定法ゲート（G1–G6） / ESA gates (G1–G6) / Gerbang UU Ketenagakerjaan (G1–G6)",
+  "legalSource": "職業安定法32条の11・5条の3・5条の4・32条の3",
+  "gates": {
+    "G1": {
+      "name": "受理チェック（建設現場作業・港湾運送の紹介禁止）",
+      "blockedDutyKeywords": {
+        "construction_site": [
+          "型枠", "鉄筋", "土木作業", "解体作業", "足場組立", "塗装作業", "溶接作業",
+          "現場作業", "建設作業", "とび職", "左官", "大工作業", "掘削", "重機運転",
+          "施工補助（作業）", "建設業務"
+        ],
+        "port": [
+          "港湾運送", "荷役", "沖仲仕", "港湾荷役", "船内荷役", "沿岸荷役"
+        ]
+      },
+      "allowedSupervisorKeywords": [
+        "施工管理", "現場監督", "工事管理者", "工事監理", "現場代理人",
+        "工程管理", "品質管理", "安全管理", "設計", "現場事務", "施工管理アシスタント",
+        "superintendent", "project manager", "PM"
+      ],
+      "titleOnlyNotEnough": true,
+      "note": "肩書ではなく実作業ベースで判定する。監督の肩書で実態が現場作業ならブロック。"
+    },
+    "G2": {
+      "name": "労働条件の明示（④交付）",
+      "requiredDocType": "t2p_job_order_notice",
+      "requiredBefore": "referral"
+    },
+    "G3": {
+      "name": "個人情報・第三者提供同意（⑤取得）",
+      "requiredDocType": "t2p_consent_form",
+      "requiredBefore": "resume_share"
+    },
+    "G5": {
+      "name": "手数料（求職者無料・成立後請求・転職勧奨2年禁止）",
+      "jobSeekerFeeForbidden": true,
+      "chargeOnlyAfterHire": true,
+      "noPoachingYears": 2
+    },
+    "G6": {
+      "name": "的確表示（広告）",
+      "forbiddenPhrases": [
+        "就職お祝い金", "お祝い金", "紹介料還元", "キャッシュバック",
+        "入社祝い金", "紹介インセンティブ"
+      ],
+      "closeFilledJobsPromptly": true
+    }
+  }
+}

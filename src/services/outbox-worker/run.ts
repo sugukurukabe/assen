@@ -29,6 +29,9 @@
 import { db, getPool } from "../../db/client.js";
 import { logMessage } from "../../lib/logger.js";
 import { notifySlackOnApprovalRequested } from "./handlers/slack-approval-notifier.js";
+import { notifySlackOnPlacementConfirmed } from "./handlers/slack-placement-notifier.js";
+import { notifySlackOnWeeklyKpi } from "./handlers/slack-kpi-notifier.js";
+import { enqueueMondayWeeklyKpiIfDue } from "./monday-kpi.js";
 import type { OutboxHandler } from "./worker.js";
 import { processOutboxBatchForAllTenants } from "./worker.js";
 
@@ -37,6 +40,8 @@ const SHUTDOWN_TIMEOUT_MS = 10_000;
 
 const handlers: Record<string, OutboxHandler> = {
   "document.approval_requested": notifySlackOnApprovalRequested,
+  "placement.confirmed": notifySlackOnPlacementConfirmed,
+  "kpi.weekly_requested": notifySlackOnWeeklyKpi,
 };
 
 async function main(): Promise<void> {
@@ -66,6 +71,10 @@ async function main(): Promise<void> {
 
   while (!shouldStop) {
     try {
+      const monday = await enqueueMondayWeeklyKpiIfDue(db);
+      if (monday.enqueued > 0) {
+        logMessage("info", "月曜週次KPIをoutboxへ投入しました / enqueued Monday weekly KPI", monday);
+      }
       const result = await processOutboxBatchForAllTenants(db, handlers, 10);
       if (result.processed > 0 || result.failed > 0) {
         logMessage("info", "outboxバッチを処理しました / processed an outbox batch", result);

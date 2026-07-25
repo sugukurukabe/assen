@@ -7,11 +7,21 @@ import { boolean, date, integer, jsonb, numeric, pgEnum, pgTable, text, uuid } f
 import { createdAtColumn, idColumn, tenantIdColumn, updatedAtColumn } from "./common.js";
 import { partySnapshots } from "./party-snapshots.js";
 import { sourceArtifacts } from "./evidence.js";
+import { applicationChannelEnum } from "./inquiries.js";
+
+export { applicationChannelEnum };
 
 export const employmentPeriodTypeEnum = pgEnum("employment_period_type", ["indefinite", "fixed"]);
 export const wageUnitEnum = pgEnum("wage_unit", ["hour", "day", "month", "year"]);
 export const jobOrderSourceEnum = pgEnum("job_order_source", ["zcareer", "exord", "direct", "sns"]);
 export const jobOrderStatusEnum = pgEnum("job_order_status", ["open", "filled", "closed"]);
+export const scoreGradeEnum = pgEnum("score_grade", ["S", "A", "B", "C"]);
+export const supervisorGateResultEnum = pgEnum("supervisor_gate_result", [
+  "allowed_supervisor",
+  "blocked_construction_site",
+  "blocked_port",
+  "needs_review",
+]);
 
 /** 求人管理簿の正本（帳簿①） / Source of truth for the job-order ledger (Ledger #1) / Sumber kebenaran buku besar lowongan (Buku Besar #1) */
 export const jobOrders = pgTable("job_orders", {
@@ -36,6 +46,18 @@ export const jobOrders = pgTable("job_orders", {
   source: jobOrderSourceEnum("source").notNull(),
   sourceArtifactId: uuid("source_artifact_id").references(() => sourceArtifacts.id),
   status: jobOrderStatusEnum("status").notNull().default("open"),
+  // 求人票の肩書（監督職判定の参考。実作業はactualDutiesを正とする） / Job-title on the posting (reference for supervisor gate; actualDuties is authoritative) / Jabatan di lowongan (acuan gerbang pengawas; actualDuties yang berwenang)
+  jobTitle: text("job_title"),
+  // 実作業内容（職安法32条の11の実作業ベース判定用） / Actual duties (for ESA Art. 32-11 real-work assessment) / Tugas aktual (untuk penilaian kerja nyata UU Ketenagakerjaan Psl. 32-11)
+  actualDuties: text("actual_duties"),
+  // G1監督職判定結果 / G1 supervisor-gate assessment result / Hasil penilaian gerbang pengawas G1
+  supervisorAssessment: jsonb("supervisor_assessment"),
+  supervisorGateResult: supervisorGateResultEnum("supervisor_gate_result"),
+  // Zキャリア求人ID・決めやすさスコア（紹介ローンチ設計書§04） / Z-Career job id & ease-of-close score (Placement Launch Spec §04) / ID lowongan Z-Career & skor kemudahan penutupan (Spesifikasi Peluncuran §04)
+  zcareerJobId: text("zcareer_job_id"),
+  scoreGrade: scoreGradeEnum("score_grade"),
+  scoreTotal: integer("score_total"),
+  scoreBreakdown: jsonb("score_breakdown"),
   extras: jsonb("extras"),
   retentionUntil: date("retention_until"),
   createdAt: createdAtColumn(),
@@ -45,6 +67,14 @@ export const jobOrders = pgTable("job_orders", {
 export const referralOutcomeEnum = pgEnum("referral_outcome", ["hired", "rejected", "withdrawn", "pending"]);
 export const referralTypeEnum = pgEnum("referral_type", ["t2p", "pure", "direct"]);
 export const referralPhaseEnum = pgEnum("referral_phase", ["F1", "F2", "F3", "F4", "F5", "F6"]);
+export const selectionStageEnum = pgEnum("selection_stage", [
+  "registered",
+  "screening",
+  "interview",
+  "offer",
+  "placed",
+]);
+export const placementPatternEnum = pgEnum("placement_pattern", ["P1", "P2", "P3", "P4"]);
 
 /** 紹介行：求人×求職の交差＝両帳簿の紹介欄（帳簿①②の接点） / Referral row: intersection of job order x job seeker (junction of Ledgers #1/#2) / Baris rujukan: perpotongan lowongan x pencari kerja (titik temu Buku Besar #1/#2) */
 export const jobOrderReferrals = pgTable("job_order_referrals", {
@@ -68,6 +98,14 @@ export const jobOrderReferrals = pgTable("job_order_referrals", {
   type: referralTypeEnum("type").notNull(),
   phase: referralPhaseEnum("phase"),
   dispatchAssignmentId: uuid("dispatch_assignment_id"),
+  // 選考段階・成約パターン（KPIファネル計測・P1〜P4分岐） / Selection stage & placement pattern (KPI funnel / P1–P4 branching) / Tahap seleksi & pola penempatan (funnel KPI / cabang P1–P4)
+  selectionStage: selectionStageEnum("selection_stage").notNull().default("registered"),
+  placementPattern: placementPatternEnum("placement_pattern"),
+  registeredAt: date("registered_at"),
+  screeningAt: date("screening_at"),
+  interviewAt: date("interview_at"),
+  offerAt: date("offer_at"),
+  placedAt: date("placed_at"),
   // ④⑤⑦書類（求人条件明示書・本人同意書・転換条件覚書）差込用の法定項目superset / Superset of statutory items for documents ④⑤⑦ (job-order notice, consent form, conversion memo) / Superset item wajib untuk dokumen ④⑤⑦ (pemberitahuan lowongan, formulir persetujuan, memo konversi)
   conditionsTyped: jsonb("conditions_typed"),
   // 不採用理由チェーン（⑧の回答を記録し、⑨明示の根拠とする） / Non-hire reason chain (records the ⑧ reply as the basis for ⑨ disclosure) / Rantai alasan tidak diterima (mencatat balasan ⑧ sebagai dasar pengungkapan ⑨)
@@ -93,6 +131,9 @@ export const jobSeekers = pgTable("job_seekers", {
   desiredOccupation: text("desired_occupation").notNull(),
   acceptedAt: date("accepted_at").notNull(),
   validUntil: date("valid_until").notNull(),
+  // 応募経路（WF-15Aの6択。Zキャリアは求人在庫側のためここには置かない） / Application channel (WF-15A's 6 options; Z-Career sits on the job-inventory side) / Jalur lamaran (6 opsi WF-15A; Z-Career ada di sisi stok lowongan)
+  applicationChannel: applicationChannelEnum("application_channel"),
+  inquiryId: uuid("inquiry_id"),
   // 同意日/範囲/提供先 / Consent date/scope/recipient / Tanggal/lingkup/penerima persetujuan
   piiConsent: jsonb("pii_consent").notNull(),
   status: jobSeekerStatusEnum("status").notNull().default("active"),

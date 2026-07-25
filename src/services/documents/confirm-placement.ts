@@ -26,7 +26,7 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "../../db/schema/index.js";
-import { feeRecords, jobOrderReferrals } from "../../db/schema/ledgers.js";
+import { feeRecords, jobOrderReferrals, jobOrders, jobSeekers } from "../../db/schema/ledgers.js";
 import { transactionalOutbox } from "../../db/schema/outbox.js";
 import { createPartySnapshot } from "./party-snapshot.js";
 import { appendAuditEvent } from "../../audit/hash-chain.js";
@@ -90,11 +90,95 @@ export interface ConfirmPlacementInput {
   outcomeInput: ConfirmPlacementOutcomeInput;
 }
 
+export interface AdHocFilingGuidance {
+  sugukuruFiling: "3-1-2";
+  receivingEmployerFiling: "3-1-1";
+  deadlineDays: 14;
+  eventDate: string;
+  deadlineDate: string;
+  notes: string[];
+}
+
+export interface FeeInvoiceDraft {
+  title: string;
+  referralId: string;
+  feeRecordId: string;
+  amountInclTax: number;
+  feeType: string;
+  payerCompanyId: string;
+  payerName: string;
+  hiredAt: string;
+  bodyText: string;
+}
+
 export interface ConfirmPlacementResult {
   jobOrderReferralId: string;
   feeRecordId?: string;
   noPoachingUntil?: string;
   alreadyProcessed: boolean;
+  // WF-25H 4点同時発火の成果物 / Artifacts of the WF-25H 4-point simultaneous fire / Artefak 4 titik simultan WF-25H
+  feeInvoiceDraft?: FeeInvoiceDraft;
+  adHocFilingGuidance?: AdHocFilingGuidance;
+  jobOrderClosed?: boolean;
+  selectionStage?: string;
+}
+
+function addDays(isoDate: string, days: number): string {
+  const date = new Date(`${isoDate}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function buildFeeInvoiceDraft(params: {
+  referralId: string;
+  feeRecordId: string;
+  fee: FeeInput;
+  employer: EmployerSnapshotInput;
+  hiredAt: string;
+}): FeeInvoiceDraft {
+  const bodyText = [
+    "紹介手数料請求ドラフト / Placement fee invoice draft / Draf tagihan fee penyaluran",
+    `求人企業: ${params.employer.name}（${params.employer.companyId}）`,
+    `成約日: ${params.hiredAt}`,
+    `手数料区分: ${params.fee.feeType}`,
+    `請求額（税込）: ¥${params.fee.amountInclTax.toLocaleString("ja-JP")}`,
+    params.fee.calcBasisWage !== undefined ? `算定基礎賃金: ¥${params.fee.calcBasisWage.toLocaleString("ja-JP")}` : undefined,
+    params.fee.calcBasisRate !== undefined ? `算定基礎率: ${params.fee.calcBasisRate}` : undefined,
+    `referral_id: ${params.referralId}`,
+    `fee_record_id: ${params.feeRecordId}`,
+    "※求職者からの徴収は禁止（職安法32条の3）。就職成立後のみ企業へ請求。",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return {
+    title: "紹介手数料請求ドラフト",
+    referralId: params.referralId,
+    feeRecordId: params.feeRecordId,
+    amountInclTax: params.fee.amountInclTax,
+    feeType: params.fee.feeType,
+    payerCompanyId: params.employer.companyId,
+    payerName: params.employer.name,
+    hiredAt: params.hiredAt,
+    bodyText,
+  };
+}
+
+function buildAdHocFilingGuidance(hiredAt: string): AdHocFilingGuidance {
+  return {
+    sugukuruFiling: "3-1-2",
+    receivingEmployerFiling: "3-1-1",
+    deadlineDays: 14,
+    eventDate: hiredAt,
+    deadlineDate: addDays(hiredAt, 14),
+    notes: [
+      "スグクル側: 随時届出 3-1-2（所属機関の契約終了等）を事由発生日から14日以内に提出",
+      "受入企業側: 随時届出 3-1-1（所属機関との契約締結等）を事由発生日から14日以内に提出",
+      "所属機関変更を伴う場合は#20へWF-20A（申請準備開始）を起票",
+      "Sugukuru: file ad-hoc 3-1-2 within 14 days of the event",
+      "Receiving employer: file ad-hoc 3-1-1 within 14 days of the event",
+    ],
+  };
 }
 
 export async function confirmPlacement(db: Db, input: ConfirmPlacementInput): Promise<ConfirmPlacementResult> {
@@ -129,7 +213,9 @@ export async function confirmPlacement(db: Db, input: ConfirmPlacementInput): Pr
     if (input.outcomeInput.outcome === "hired") {
       const { hiredAt, indefiniteEmployment, employer, conversionTerms, fee } = input.outcomeInput;
       const noPoachingUntil = addYears(hiredAt, NO_POACHING_YEARS);
+      const adHocFilingGuidance = buildAdHocFilingGuidance(hiredAt);
 
+      // ① referral成約＋段階更新 / ① finalize referral + stage update
       await tx
         .update(jobOrderReferrals)
         .set({
@@ -138,9 +224,23 @@ export async function confirmPlacement(db: Db, input: ConfirmPlacementInput): Pr
           indefiniteEmployment,
           noPoachingUntil,
           phase: "F6",
-          conditionsTyped: { ...existingConditions, ...conversionTerms },
+          selectionStage: "placed",
+          placedAt: hiredAt,
+          offerAt: referral.offerAt ?? hiredAt,
+          conditionsTyped: { ...existingConditions, ...conversionTerms, adHocFilingGuidance },
+          updatedAt: new Date(),
         })
         .where(eq(jobOrderReferrals.id, input.jobOrderReferralId));
+
+      // ④ 求人クローズ＋求職者ステータス更新 / ④ close job order + mark seeker placed
+      await tx
+        .update(jobOrders)
+        .set({ status: "filled", updatedAt: new Date() })
+        .where(eq(jobOrders.id, referral.jobOrderId));
+      await tx
+        .update(jobSeekers)
+        .set({ status: "placed", updatedAt: new Date() })
+        .where(eq(jobSeekers.id, referral.jobSeekerId));
 
       const { id: payerSnapshotId } = await createPartySnapshot(tx, {
         tenantId: input.tenantId,
@@ -150,6 +250,7 @@ export async function confirmPlacement(db: Db, input: ConfirmPlacementInput): Pr
         takenReason: "placement_confirm",
       });
 
+      // ① 帳簿③記帳 / ① post Ledger #3
       const feeRecordId = randomUUID();
       await tx.insert(feeRecords).values({
         id: feeRecordId,
@@ -163,6 +264,15 @@ export async function confirmPlacement(db: Db, input: ConfirmPlacementInput): Pr
         collectedAt: fee.collectedAt,
       });
 
+      // ② 手数料請求ドラフト / ② fee invoice draft
+      const feeInvoiceDraft = buildFeeInvoiceDraft({
+        referralId: input.jobOrderReferralId,
+        feeRecordId,
+        fee,
+        employer,
+        hiredAt,
+      });
+
       await appendAuditEvent(tx, {
         tenantId: input.tenantId,
         aggregateType: "job_order_referral",
@@ -174,17 +284,34 @@ export async function confirmPlacement(db: Db, input: ConfirmPlacementInput): Pr
         requestId: input.requestId,
       });
 
+      // ③ 随時届出案内＋④成約通知をoutboxへ（Slack投稿はhandler側） / ③ ad-hoc filing guidance + ④ placement notice to outbox
       await enqueueOutboxEvent(tx, {
         tenantId: input.tenantId,
         aggregateType: "job_order_referral",
         aggregateId: input.jobOrderReferralId,
         eventType: "placement.confirmed",
-        payload: { jobOrderReferralId: input.jobOrderReferralId, outcome: "hired", feeRecordId, reason: input.reason },
+        payload: {
+          jobOrderReferralId: input.jobOrderReferralId,
+          outcome: "hired",
+          feeRecordId,
+          reason: input.reason,
+          feeInvoiceDraft,
+          adHocFilingGuidance,
+        },
         idempotencyKey: input.idempotencyKey,
         externalReference: input.jobOrderReferralId,
       });
 
-      return { jobOrderReferralId: input.jobOrderReferralId, feeRecordId, noPoachingUntil, alreadyProcessed: false };
+      return {
+        jobOrderReferralId: input.jobOrderReferralId,
+        feeRecordId,
+        noPoachingUntil,
+        alreadyProcessed: false,
+        feeInvoiceDraft,
+        adHocFilingGuidance,
+        jobOrderClosed: true,
+        selectionStage: "placed",
+      };
     }
 
     const { nonHireRequestDetails } = input.outcomeInput;

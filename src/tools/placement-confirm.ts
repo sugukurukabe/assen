@@ -120,12 +120,23 @@ export function registerPlacementConfirm(server: McpServer, context: ServiceCont
           subjectId: result.jobOrderReferralId,
           subjectVersion: 2,
           status: result.alreadyProcessed ? "already_confirmed" : "confirmed",
+          feeRecordId: result.feeRecordId,
+          noPoachingUntil: result.noPoachingUntil,
+          // WF-25H 4点同時発火 / WF-25H 4-point simultaneous fire / 4 titik simultan WF-25H
+          feeInvoiceDraft: result.feeInvoiceDraft,
+          adHocFilingGuidance: result.adHocFilingGuidance,
+          jobOrderClosed: result.jobOrderClosed,
+          selectionStage: result.selectionStage,
           missingFields: [],
           findings: [],
           evidenceRefs: [`assen://audit/job_order_referral/${result.jobOrderReferralId}`],
           nextActions:
             args.outcome === "hired"
-              ? ["document.generate_draftでdocType=t2p_conversion_memo（⑦）を生成してください"]
+              ? [
+                  "帳簿③記帳・請求ドラフト・随時届出案内・求人クローズは完了済みです（WF-25H相当）",
+                  "document.generate_draftでdocType=t2p_conversion_memo（⑦）を生成してください",
+                  "#20へ在留手続の要否を連携し、#40で請求ドラフトを確認してください",
+                ]
               : [
                   "document.generate_draftでdocType=t2p_non_hire_reason_request（⑧）を生成してください",
                   "派遣先からの回答受領後はplacement.record_rejection_reasonで理由を記録してください",

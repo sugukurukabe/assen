@@ -21,6 +21,10 @@ const inputSchema = {
   jobSeekerId: z.string().uuid().describe("job_seeker.confirmで確定済みの求職者ID / Job seeker id finalized via job_seeker.confirm / Id pencari kerja yang difinalisasi via job_seeker.confirm"),
   referredAt: z.string().min(1).describe("紹介日(YYYY-MM-DD) / Referral date / Tanggal rujukan"),
   type: z.enum(["t2p", "pure", "direct"]).describe("紹介区分（紹介予定派遣／純粋紹介／直接） / Referral category (T2P / pure referral / direct) / Kategori rujukan (T2P / rujukan murni / langsung)"),
+  placementPattern: z
+    .enum(["P1", "P2", "P3", "P4"])
+    .optional()
+    .describe("成約パターンP1〜P4（省略時はtype/sourceから推定） / Placement pattern P1–P4 (inferred when omitted) / Pola penempatan P1–P4"),
   conditionsTyped: t2pReferralConditionsInputSchema
     .partial()
     .optional()
@@ -65,6 +69,7 @@ export function registerJobOrderReferralConfirm(server: McpServer, context: Serv
           jobSeekerId: args.jobSeekerId,
           referredAt: args.referredAt,
           type: args.type,
+          placementPattern: args.placementPattern,
           conditionsTyped: args.conditionsTyped,
           dispatchAssignmentId: args.dispatchAssignmentId,
         });
