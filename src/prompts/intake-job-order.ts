@@ -26,11 +26,13 @@ export function registerIntakeJobOrderPrompt(server: McpServer, _context: Servic
           content: {
             type: "text",
             text: [
-              "以下の求人メールを取り込み、帳簿①（求人管理簿）へ確定してください。",
+              "以下の求人（メールまたはZキャリア転記）を取り込み、帳簿①（求人管理簿）へ確定してください。",
               "1. job_order.analyzeを呼び出し、候補事実（fact_assertions）と欠落項目を確認する",
               "2. 欠落・低confidenceの項目をユーザーに確認する（LLMの推測をそのまま確定しない）",
               "3. 確認済みの値でjob_order.confirmを呼び出し、帳簿①へpostingする",
-              "4. compliance.evaluateで法定必須項目の充足状況を確認する",
+              "4. job_order.gate_checkで実作業内容を入力しG1監督職判定を通す（建設現場・港湾はブロック）",
+              "5. Zキャリア由来ならjob_order.scoreで内定率・書類通過率等からS/A/B/Cを付ける",
+              "6. compliance.evaluateで法定必須項目と職安法ゲートを確認する",
               "",
               `原文URI: ${args.sourceUri}`,
               "原文:",

@@ -27,7 +27,7 @@ import { runGoldenPromptFixtures } from "../src/services/golden-prompts/run-gold
 import { goldenPromptFixtures } from "./golden-prompts/fixtures.js";
 
 describe("golden promptハーネス（heuristicスタブでの配線検証） / golden-prompt harness (wiring check via heuristic stub)", () => {
-  it("実際に登録されている15個のM1+M2 Phase 1+Phase 2ツールが取得できる / retrieves all 15 registered M1+M2 Phase 1+Phase 2 tools", async () => {
+  it("実際に登録されている有料紹介特化後の全ツールが取得できる / retrieves all registered tools after paid-placement specialization", async () => {
     const tools = await listRegisteredTools();
     const toolNames = tools.map((tool) => tool.name).sort();
     expect(toolNames).toEqual(
@@ -41,12 +41,20 @@ describe("golden promptハーネス（heuristicスタブでの配線検証） / 
         "document.record_delivery",
         "document.request_approval",
         "document.supersede",
+        "inquiry.promote",
+        "inquiry.record",
+        "inquiry.update",
         "job_order.analyze",
         "job_order.confirm",
+        "job_order.gate_check",
+        "job_order.list",
+        "job_order.score",
         "job_order_referral.confirm",
         "job_seeker.confirm",
+        "kpi.weekly_summary",
         "placement.confirm",
         "placement.record_rejection_reason",
+        "referral.advance_stage",
       ].sort(),
     );
   });

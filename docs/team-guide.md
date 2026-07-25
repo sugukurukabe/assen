@@ -96,7 +96,7 @@ AssenはStreamable HTTP transport（`/mcp`）で待ち受けます。**接続方
 - トークンの値は`.env`の`AUTH_LOCAL_TOKEN`（ローカル）または3.3節の`pnpm run auth:get-token`（本番相当）の出力と完全一致させてください（不一致だと401 unauthorizedになります）
 - トークンはSlack等の平文チャットに貼らないでください。1人1トークンを想定し、共有アカウント運用は避けてください
 
-接続できたか確認するには、エージェントに「Assenで使えるツールを一覧して」と頼むか、`tools/list`を直接呼びます。15個のツール（`job_order.analyze`〜`placement.record_rejection_reason`）が返れば接続成功です。
+接続できたか確認するには、エージェントに「Assenで使えるツールを一覧して」と頼むか、`tools/list`を直接呼びます。有料紹介特化後は23個のツール（`inquiry.*`・`job_order.gate_check`/`score`/`list`・`kpi.weekly_summary`等を含む）が返れば接続成功です。対応表は[`docs/paid-placement-workflow.md`](paid-placement-workflow.md)を参照してください。
 
 ### 3.3 本番相当環境（Cloud Run）に接続する — 現状 / Connecting to the production-equivalent (Cloud Run) environment — current status / Terhubung ke lingkungan setara produksi (Cloud Run) — status saat ini
 

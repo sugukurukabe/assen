@@ -1,0 +1,16 @@
+紹介手数料請求ドラフト / Placement Fee Invoice Draft / Draf Tagihan Fee Penyaluran
+================================================================================
+請求先 / Bill to / Ditagihkan ke: {{payerName}}（{{payerCompanyId}}）
+成約日 / Hire date / Tanggal masuk: {{hiredAt}}
+手数料区分 / Fee type / Jenis fee: {{feeType}}
+請求額（税込） / Amount incl. tax / Jumlah termasuk pajak: ¥{{amountInclTax}}
+算定基礎賃金 / Calc basis wage / Upah dasar: {{calcBasisWage}}
+算定基礎率 / Calc basis rate / Tarif dasar: {{calcBasisRate}}
+referral_id: {{referralId}}
+fee_record_id: {{feeRecordId}}
+
+注記 / Notes / Catatan:
+- 求職者からの徴収は禁止（職安法32条の3）
+- Charging the job seeker is forbidden (ESA Art. 32-3)
+- Dilarang memungut dari pencari kerja (UU Ketenagakerjaan Psl. 32-3)
+- 就職成立後のみ企業へ請求 / Charge the employer only after hire is finalized / Tagih perusahaan hanya setelah penempatan jadi

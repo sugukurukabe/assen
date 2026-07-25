@@ -76,7 +76,7 @@ claude mcp add --transport http assen \
 
 > Assenで使えるツールを一覧して
 
-15個のツール（`job_order.analyze`〜`placement.record_rejection_reason`）が返れば接続成功です。
+23個のツール（`inquiry.*`・`job_order.gate_check`/`score`/`list`・`kpi.weekly_summary`等を含む）が返れば接続成功です。有料紹介の使い方は[`docs/paid-placement-workflow.md`](paid-placement-workflow.md)を参照してください。
 
 ---
 

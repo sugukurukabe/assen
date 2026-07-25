@@ -7,6 +7,7 @@ export * from "./tenant.js";
 export * from "./party-snapshots.js";
 export * from "./evidence.js";
 export * from "./legal.js";
+export * from "./inquiries.js";
 export * from "./ledgers.js";
 export * from "./documents.js";
 export * from "./audit.js";

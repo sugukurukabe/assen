@@ -90,6 +90,10 @@ const envSchema = z.object({
   // (agar dev/test lokal tidak pernah memerlukan panggilan jaringan)
   SLACK_BOT_TOKEN: z.string().optional().default(""),
   SLACK_APPROVAL_CHANNEL_ID: z.string().optional().default(""),
+  // 週次5指標KPIの投稿先（#15相当）。未設定ならKPIの自動Slack投稿はスキップ
+  // Destination for the weekly 5-metric KPI post (#15 equivalent). Skips auto Slack KPI posts when unset
+  // Tujuan posting KPI 5 indikator mingguan (setara #15). Lewati posting Slack KPI otomatis jika tidak diatur
+  SLACK_KPI_CHANNEL_ID: z.string().optional().default(""),
   // トークン交換層（Google IDトークン→Assen audience JWT、自社MVPゲート・docs/registry-readiness-checklist.md G節）。
   // GOOGLE_OAUTH_CLIENT_IDが未設定なら機能全体を無効化する（/oauth/token-exchange・/oauth/jwks.jsonは404を返す）
   // Token-exchange layer (Google ID token -> Assen audience JWT; internal-MVP gate, checklist section G).

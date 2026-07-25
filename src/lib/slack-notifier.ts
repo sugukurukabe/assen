@@ -16,6 +16,8 @@ import { logMessage } from "./logger.js";
 
 export interface SlackMessage {
   text: string;
+  /** 省略時はSLACK_APPROVAL_CHANNEL_ID / Defaults to SLACK_APPROVAL_CHANNEL_ID / Default ke SLACK_APPROVAL_CHANNEL_ID */
+  channelId?: string;
 }
 
 interface SlackPostMessageResponse {
@@ -30,9 +32,11 @@ interface SlackPostMessageResponse {
  */
 export async function postSlackMessage(message: SlackMessage): Promise<void> {
   const env = loadEnv();
-  if (!env.SLACK_BOT_TOKEN || !env.SLACK_APPROVAL_CHANNEL_ID) {
+  const channelId = message.channelId || env.SLACK_APPROVAL_CHANNEL_ID;
+  if (!env.SLACK_BOT_TOKEN || !channelId) {
     logMessage("info", "Slack未設定のため通知をログ出力のみに留めます / Slack not configured; logging instead of posting", {
       text: message.text,
+      channelId: channelId || null,
     });
     return;
   }
@@ -43,7 +47,7 @@ export async function postSlackMessage(message: SlackMessage): Promise<void> {
       "Content-Type": "application/json; charset=utf-8",
       Authorization: `Bearer ${env.SLACK_BOT_TOKEN}`,
     },
-    body: JSON.stringify({ channel: env.SLACK_APPROVAL_CHANNEL_ID, text: message.text }),
+    body: JSON.stringify({ channel: channelId, text: message.text }),
   });
 
   const body = (await response.json()) as SlackPostMessageResponse;
