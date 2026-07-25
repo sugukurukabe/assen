@@ -168,11 +168,6 @@ export function assertProductionSafety(env: AssenEnv): void {
       "トークン交換を有効にする場合はTOKEN_EXCHANGE_SIGNING_PRIVATE_KEY_JWKが必須です（未設定だと再起動毎に鍵が変わり、発行済みトークンが全て無効化されます） / TOKEN_EXCHANGE_SIGNING_PRIVATE_KEY_JWK is required whenever token exchange is enabled (otherwise the key changes on every restart, invalidating all previously issued tokens)",
     );
   }
-  if (env.GOOGLE_OAUTH_CLIENT_ID && !env.GOOGLE_OAUTH_CLIENT_SECRET) {
-    violations.push(
-      "ワンクリックOAuthを有効にする場合はGOOGLE_OAUTH_CLIENT_SECRETが必須です / GOOGLE_OAUTH_CLIENT_SECRET is required for one-click OAuth",
-    );
-  }
   if (violations.length > 0) {
     throw new Error(`本番起動を拒否しました / Refused to start in production: ${violations.join(" / ")}`);
   }
