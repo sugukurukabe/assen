@@ -42,7 +42,7 @@ export const inquiries = pgTable("inquiries", {
   wantsT2p: boolean("wants_t2p").notNull().default(false),
   setSentAt: timestamp("set_sent_at", { withTimezone: true }),
   setReceivedAt: date("set_received_at"),
-  // 3日無応答で自動クローズ判定用 / For 3-day no-response auto-close / Untuk penutupan otomatis 3 hari tanpa respons
+  // 7日無応答で自動クローズ判定用 / For 7-day no-response auto-close / Untuk penutupan otomatis 7 hari tanpa respons
   lastContactAt: timestamp("last_contact_at", { withTimezone: true }),
   closedAt: timestamp("closed_at", { withTimezone: true }),
   closeReason: text("close_reason"),

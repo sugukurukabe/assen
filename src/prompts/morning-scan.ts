@@ -1,7 +1,7 @@
 /**
- * 朝のZキャリアスキャン〜S/Aリスト更新の台本（オシン日次09:00–09:15）
- * Script for the morning Z-Career scan → S/A list update (Oshin's daily 09:00–09:15)
- * Naskah pindai Z-Career pagi → perbarui daftar S/A (rutin harian Oshin 09:00–09:15)
+ * 朝の3ソース求人スキャン〜S/Aリスト更新の台本（オシン日次09:00–09:15）
+ * Script for the morning 3-source scan → S/A list update (Oshin's daily 09:00–09:15)
+ * Naskah pindai 3 sumber pagi → perbarui daftar S/A (rutin harian Oshin 09:00–09:15)
  */
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -13,11 +13,11 @@ export function registerMorningScanPrompt(server: McpServer, _context: ServiceCo
     {
       title: "朝の求人スキャンとS/A更新",
       description:
-        "Zキャリア新着をスコアリングし、G1関所を通したS/A案件リストを更新する日次台本 / Daily script to score new Z-Career jobs, pass G1, and refresh the S/A list / Naskah harian menilai lowongan Z-Career baru, lolos G1, dan memperbarui daftar S/A",
+        "Zキャリア・Ex-ord(Gmail)・#10インバウンドを同じ採点表で処理し、G1関所を通したS/A案件リストを更新する日次台本 / Daily script to score Z-Career, Ex-ord Gmail, and #10 inbound jobs with one scorecard / Naskah harian menilai Z-Career, Gmail Ex-ord, dan inbound #10 dengan tabel skor sama",
       argsSchema: {
-        zcareerNotes: z
+        sourceNotes: z
           .string()
-          .describe("Zキャリア画面から転記した新着求人メモ（内定率・書類通過率・応募数など） / Notes transcribed from the Z-Career screen / Catatan dari layar Z-Career"),
+          .describe("3ソースから転記した求人メモ（Zキャリア/Ex-ord/#10） / Job notes from the three sources / Catatan lowongan dari 3 sumber"),
       },
     },
     (args) => ({
@@ -27,15 +27,17 @@ export function registerMorningScanPrompt(server: McpServer, _context: ServiceCo
           content: {
             type: "text",
             text: [
-              "朝の15分ルーティン（紹介ローンチ設計書§07）を実行してください。",
-              "1. 下記メモの各求人について、必要ならjob_order.analyze→confirmで帳簿①へ登録",
-              "2. job_order.gate_checkで実作業ベースのG1監督職判定（建設現場・港湾はブロック）",
-              "3. job_order.scoreで決めやすさスコア（S/A/B/C）を付ける",
-              "4. job_order.list(grades=[\"S\",\"A\"], status=\"open\")で今週の推薦対象を確認",
-              "5. B/Cのうち建設監督系はrouteToP2Laneなら壁・吉原判断へ回す。それ以外は追わない",
+              "朝の15分ルーティン（紹介ローンチ設計書v1.2 §09）を実行してください。",
+              "1. Zキャリア新着・GmailのEx-ord求人・#10_deal_deskインバウンドを同じ採点表で読む",
+              "2. 必要ならjob_order_analyze→job_order_confirmで帳簿①へ登録（備考に提携元＋求人ID＋スコア）",
+              "3. job_order_gate_checkで実作業ベースのG1監督職判定（建設現場作業・港湾はブロック）",
+              "4. job_order_scoreで採点表v1.2（S≥9/A6–8、⑥レーン適合あり）を付ける",
+              "5. job_order_list(grades=[\"S\",\"A\"], status=\"open\")で今週の推薦対象を確認",
+              "6. Slackへは日次1スレッド「7/25 スキャン｜Z新着_件・Ex-ord_件｜S:_ A:_」形式で結果のみまとめる",
+              "7. B/Cのうち建設監督系はrouteToP2Laneなら壁・吉原判断へ回す。それ以外は追わない",
               "",
-              "Zキャリアメモ:",
-              args.zcareerNotes,
+              "求人メモ:",
+              args.sourceNotes,
             ].join("\n"),
           },
         },

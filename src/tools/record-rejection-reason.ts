@@ -33,7 +33,7 @@ const inputSchema = {
 
 export function registerRecordRejectionReason(server: McpServer, context: ServiceContext): void {
   server.registerTool(
-    "placement.record_rejection_reason",
+    "placement_record_rejection_reason",
     {
       title: "不採用理由を記録する",
       description:

@@ -12,6 +12,7 @@ import { UserInputError } from "../../lib/errors.js";
 type Db = NodePgDatabase<typeof schema>;
 
 export type ScoreGrade = "S" | "A" | "B" | "C";
+export type LaneFit = "hotel" | "restaurant" | "mobile_shop" | "ja_office" | "none";
 
 export interface JobOrderScoreInput {
   offerRatePercent?: number;
@@ -23,6 +24,8 @@ export interface JobOrderScoreInput {
   hasDormitory?: boolean;
   hasRelocationAllowance?: boolean;
   kyushuLocation?: boolean;
+  laneFit?: LaneFit;
+  wantsExperiencedWorker?: boolean;
   isConstructionSupervisorLane?: boolean;
 }
 
@@ -32,6 +35,7 @@ export interface ScoreBreakdown {
   competition: number;
   candidatePoolFit: number;
   livingConditions: number;
+  laneFit: number;
 }
 
 export interface JobOrderScoreResult {
@@ -104,13 +108,19 @@ export function computeJobOrderScore(input: JobOrderScoreInput): JobOrderScoreRe
     competition,
     candidatePoolFit,
     livingConditions,
+    laneFit:
+      input.laneFit && input.laneFit !== "none"
+        ? 2 + (input.wantsExperiencedWorker ? 1 : 0)
+        : input.wantsExperiencedWorker
+          ? 1
+          : 0,
   };
-  const total = offerRate + documentPassRate + competition + candidatePoolFit + livingConditions;
+  const total = offerRate + documentPassRate + competition + candidatePoolFit + livingConditions + breakdown.laneFit;
 
   let grade: ScoreGrade;
-  if (total >= 8) {
+  if (total >= 9) {
     grade = "S";
-  } else if (total >= 5) {
+  } else if (total >= 6) {
     grade = "A";
   } else if (total >= 3) {
     grade = "B";

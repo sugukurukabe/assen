@@ -23,7 +23,7 @@ const inputSchema = {
 
 export function registerDocumentSupersede(server: McpServer, context: ServiceContext): void {
   server.registerTool(
-    "document.supersede",
+    "document_supersede",
     {
       title: "書類の訂正版を発行する",
       description:

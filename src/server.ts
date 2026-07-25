@@ -5,9 +5,10 @@
  */
 import { randomUUID } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import { pathToFileURL } from "node:url";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { acquireTenantScopedDb, getPool } from "./db/client.js";
-import { readJsonBody } from "./lib/http-body.js";
+import { acquireTenantScopedDb, db, getPool } from "./db/client.js";
+import { readJsonBody, readTextBody } from "./lib/http-body.js";
 import { assertProductionSafety, loadEnv, type AssenEnv } from "./lib/env.js";
 import { logMessage } from "./lib/logger.js";
 import { resolvePrincipal } from "./lib/auth.js";
@@ -15,6 +16,15 @@ import { ensureBucketExists } from "./lib/storage.js";
 import { exchangeGoogleIdTokenForAssenToken, getTokenExchangeJwks } from "./lib/token-exchange.js";
 import { PayloadTooLargeError, UserInputError } from "./lib/errors.js";
 import { applyCorsHeaders, parseAllowedOrigins } from "./lib/cors.js";
+import {
+  buildAuthorizationServerMetadata,
+  buildAuthorizeRedirect,
+  buildProtectedResourceMetadata,
+  getBaseUrlFromRequest,
+  handleGoogleOAuthCallback,
+  handleOAuthTokenRequest,
+  registerOAuthClient,
+} from "./lib/oauth-as.js";
 import { createAssenMcpServer } from "./protocol/mcp-factory.js";
 import { buildServerCard } from "./protocol/server-card.js";
 import type { ServiceContext } from "./protocol/service-context.js";
@@ -25,6 +35,15 @@ function extractBearerToken(req: IncomingMessage): string | undefined {
     return undefined;
   }
   return header.slice("Bearer ".length);
+}
+
+function writeOAuthChallenge(req: IncomingMessage, res: ServerResponse, env: AssenEnv): void {
+  const baseUrl = getBaseUrlFromRequest(req, env);
+  res.writeHead(401, {
+    "content-type": "application/json",
+    "WWW-Authenticate": `Bearer resource_metadata="${baseUrl}/.well-known/oauth-protected-resource"`,
+  });
+  res.end(JSON.stringify({ error: "unauthorized" }));
 }
 
 async function handleMcpRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -39,8 +58,7 @@ async function handleMcpRequest(req: IncomingMessage, res: ServerResponse): Prom
       error: error instanceof Error ? error.message : String(error),
       requestId,
     });
-    res.writeHead(401, { "content-type": "application/json" });
-    res.end(JSON.stringify({ error: "unauthorized" }));
+    writeOAuthChallenge(req, res, env);
     return;
   }
 
@@ -95,6 +113,55 @@ async function handleMcpRequest(req: IncomingMessage, res: ServerResponse): Prom
     release();
     throw error;
   }
+}
+
+async function handleOAuthRegisterRequest(req: IncomingMessage, res: ServerResponse, env: AssenEnv): Promise<void> {
+  let body: unknown;
+  try {
+    body = await readJsonBody(req, env.MAX_REQUEST_BODY_BYTES);
+  } catch (error) {
+    if (error instanceof PayloadTooLargeError) {
+      res.writeHead(413, { "content-type": "application/json" });
+      res.end(JSON.stringify({ error: "payload_too_large" }));
+      return;
+    }
+    throw error;
+  }
+
+  const result = await registerOAuthClient(db, body);
+  res.writeHead(201, { "content-type": "application/json" });
+  res.end(JSON.stringify(result));
+}
+
+async function handleOAuthTokenFormRequest(req: IncomingMessage, res: ServerResponse, env: AssenEnv): Promise<void> {
+  let raw: string;
+  try {
+    raw = await readTextBody(req, env.MAX_REQUEST_BODY_BYTES);
+  } catch (error) {
+    if (error instanceof PayloadTooLargeError) {
+      res.writeHead(413, { "content-type": "application/json" });
+      res.end(JSON.stringify({ error: "payload_too_large" }));
+      return;
+    }
+    throw error;
+  }
+
+  const result = await handleOAuthTokenRequest(db, new URLSearchParams(raw));
+  res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store", pragma: "no-cache" });
+  res.end(JSON.stringify(result));
+}
+
+function handleOAuthError(res: ServerResponse, error: unknown): void {
+  if (error instanceof UserInputError) {
+    res.writeHead(400, { "content-type": "application/json" });
+    res.end(JSON.stringify({ error: error.message, remediation: error.remediation }));
+    return;
+  }
+  logMessage("error", "OAuth AS処理に失敗しました / OAuth AS handling failed", {
+    error: error instanceof Error ? error.message : String(error),
+  });
+  res.writeHead(500, { "content-type": "application/json" });
+  res.end(JSON.stringify({ error: "internal_error" }));
 }
 
 /**
@@ -176,20 +243,21 @@ export function createAssenHttpServer(env: AssenEnv): Server {
   const mcpAllowedOrigins = parseAllowedOrigins(env.CORS_ALLOWED_ORIGINS);
 
   return createServer((req, res) => {
-    const isPreflight = applyCorsHeaders(req, res, req.url ?? "", mcpAllowedOrigins);
+    const parsedUrl = new URL(req.url ?? "/", `http://${req.headers.host ?? `localhost:${env.PORT}`}`);
+    const isPreflight = applyCorsHeaders(req, res, parsedUrl.pathname, mcpAllowedOrigins);
     if (isPreflight) {
       res.writeHead(204);
       res.end();
       return;
     }
 
-    if (req.url === "/health") {
+    if (parsedUrl.pathname === "/health") {
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify({ status: "ok", server: "assen" }));
       return;
     }
 
-    if (req.url === "/ready") {
+    if (parsedUrl.pathname === "/ready") {
       handleReadyRequest(res).catch((error: unknown) => {
         logMessage("critical", "readinessハンドラで予期しないエラー / unexpected error in readiness handler", {
           error: error instanceof Error ? error.message : String(error),
@@ -201,17 +269,56 @@ export function createAssenHttpServer(env: AssenEnv): Server {
     // Server Card：レジストリ/クローラーがハンドシェイク不要で発見できる静的マニフェスト（SEP-2127 Draft）
     // Server Card: static manifest discoverable by registries/crawlers without a handshake (SEP-2127 Draft)
     // Server Card: manifest statis yang dapat ditemukan registry/crawler tanpa handshake (SEP-2127 Draft)
-    if (req.url === "/.well-known/mcp.json") {
-      const forwardedProto = req.headers["x-forwarded-proto"];
-      const protocol = (Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto) ?? "http";
-      const host = req.headers.host ?? `localhost:${env.PORT}`;
-      const card = buildServerCard(`${protocol}://${host}`);
+    if (parsedUrl.pathname === "/.well-known/mcp.json") {
+      const card = buildServerCard(getBaseUrlFromRequest(req, env));
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify(card, null, 2));
       return;
     }
 
-    if (req.url === "/oauth/jwks.json") {
+    if (parsedUrl.pathname === "/.well-known/oauth-protected-resource") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify(buildProtectedResourceMetadata(getBaseUrlFromRequest(req, env)), null, 2));
+      return;
+    }
+
+    if (parsedUrl.pathname === "/.well-known/oauth-authorization-server") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify(buildAuthorizationServerMetadata(getBaseUrlFromRequest(req, env), env), null, 2));
+      return;
+    }
+
+    if (parsedUrl.pathname === "/oauth/register" && req.method === "POST") {
+      handleOAuthRegisterRequest(req, res, env).catch((error: unknown) => handleOAuthError(res, error));
+      return;
+    }
+
+    if (parsedUrl.pathname === "/oauth/authorize" && req.method === "GET") {
+      buildAuthorizeRedirect(db, getBaseUrlFromRequest(req, env), parsedUrl.searchParams)
+        .then((location) => {
+          res.writeHead(302, { location });
+          res.end();
+        })
+        .catch((error: unknown) => handleOAuthError(res, error));
+      return;
+    }
+
+    if (parsedUrl.pathname === "/oauth/callback" && req.method === "GET") {
+      handleGoogleOAuthCallback(db, getBaseUrlFromRequest(req, env), parsedUrl.searchParams)
+        .then((location) => {
+          res.writeHead(302, { location });
+          res.end();
+        })
+        .catch((error: unknown) => handleOAuthError(res, error));
+      return;
+    }
+
+    if (parsedUrl.pathname === "/oauth/token" && req.method === "POST") {
+      handleOAuthTokenFormRequest(req, res, env).catch((error: unknown) => handleOAuthError(res, error));
+      return;
+    }
+
+    if (parsedUrl.pathname === "/oauth/jwks.json") {
       getTokenExchangeJwks()
         .then((jwks) => {
           res.writeHead(200, { "content-type": "application/json" });
@@ -229,7 +336,7 @@ export function createAssenHttpServer(env: AssenEnv): Server {
       return;
     }
 
-    if (req.url === "/oauth/token-exchange" && req.method === "POST") {
+    if (parsedUrl.pathname === "/oauth/token-exchange" && req.method === "POST") {
       handleTokenExchangeRequest(req, res, env).catch((error: unknown) => {
         logMessage("critical", "トークン交換ハンドラで予期しないエラー / unexpected error in the token-exchange handler", {
           error: error instanceof Error ? error.message : String(error),
@@ -242,7 +349,7 @@ export function createAssenHttpServer(env: AssenEnv): Server {
       return;
     }
 
-    if (req.url === "/mcp") {
+    if (parsedUrl.pathname === "/mcp") {
       handleMcpRequest(req, res).catch((error: unknown) => {
         logMessage("critical", "MCPリクエスト処理に失敗しました / MCP request handling failed", {
           error: error instanceof Error ? error.message : String(error),
@@ -309,4 +416,7 @@ function main(): void {
   process.on("SIGINT", () => shutdown("SIGINT"));
 }
 
-main();
+const entrypoint = process.argv[1] ? pathToFileURL(process.argv[1]).href : undefined;
+if (entrypoint === import.meta.url) {
+  main();
+}

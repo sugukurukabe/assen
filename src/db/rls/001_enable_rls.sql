@@ -18,6 +18,7 @@ begin
     'job_seekers',
     'inquiries',
     'fee_records',
+    'fee_invoice_drafts',
     'dispatch_assignments',
     'dispatch_ledger_entries',
     'deadline_instances',

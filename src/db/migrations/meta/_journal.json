@@ -29,6 +29,27 @@
       "when": 1784955070727,
       "tag": "0003_paid_placement_specialization",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785000000000,
+      "tag": "0004_one_click_oauth_as",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785004340720,
+      "tag": "0005_acoustic_hammerhead",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785005725513,
+      "tag": "0006_closed_lionheart",
+      "breakpoints": true
     }
   ]
 }

@@ -12,6 +12,19 @@ import { PayloadTooLargeError } from "./errors.js";
  * Menolak body permintaan yang melebihi maxBytes segera untuk mencegah DoS berupa kehabisan memori
  */
 export async function readJsonBody(req: IncomingMessage, maxBytes: number): Promise<unknown> {
+  const raw = await readTextBody(req, maxBytes);
+  if (!raw) {
+    return undefined;
+  }
+  return JSON.parse(raw);
+}
+
+/**
+ * JSON以外（OAuth token endpointのform-urlencoded等）の本文を安全に読み込む
+ * Safely reads non-JSON bodies, such as form-urlencoded OAuth token endpoint requests
+ * Membaca body non-JSON dengan aman, seperti permintaan form-urlencoded endpoint token OAuth
+ */
+export async function readTextBody(req: IncomingMessage, maxBytes: number): Promise<string> {
   const chunks: Buffer[] = [];
   let total = 0;
   for await (const chunk of req as AsyncIterable<Buffer>) {
@@ -24,11 +37,11 @@ export async function readJsonBody(req: IncomingMessage, maxBytes: number): Prom
     chunks.push(chunk);
   }
   if (chunks.length === 0) {
-    return undefined;
+    return "";
   }
   const raw = Buffer.concat(chunks).toString("utf8");
   if (!raw) {
-    return undefined;
+    return "";
   }
-  return JSON.parse(raw);
+  return raw;
 }

@@ -231,7 +231,7 @@ export function renderApprovalUiHtml(data: ApprovalUiData): string {
           alert("判断理由を入力してください / Please enter a decision reason / Silakan masukkan alasan keputusan");
           return;
         }
-        var toolName = "document.approve";
+        var toolName = "document_approve";
         var params = { approvalRequestId: approvalRequestId, decision: decision, decisionReason: decisionReason };
 
         // 1) OpenAI Apps SDK方式のブリッジ（window.openai.callTool） / OpenAI Apps SDK-style bridge / Bridge gaya OpenAI Apps SDK

@@ -33,7 +33,7 @@ const inputSchema = {
 
 export function registerDocumentGenerateDraft(server: McpServer, context: ServiceContext): void {
   server.registerTool(
-    "document.generate_draft",
+    "document_generate_draft",
     {
       title: "派遣関連書類のドラフトを生成する",
       description:

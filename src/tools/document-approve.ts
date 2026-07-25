@@ -21,7 +21,7 @@ const inputSchema = {
 
 export function registerDocumentApprove(server: McpServer, context: ServiceContext): void {
   server.registerTool(
-    "document.approve",
+    "document_approve",
     {
       title: "書類を承認・差戻しする",
       description:

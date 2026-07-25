@@ -35,6 +35,10 @@ const confirmFieldsSchema = z.object({
   t2pFlag: z.boolean().describe("紹介予定派遣か / Is this T2P / Apakah ini T2P"),
   refundSystem: z.boolean().describe("返戻金制度の有無 / Refund system present / Ada sistem pengembalian"),
   source: z.enum(["zcareer", "exord", "direct", "sns"]).describe("受理経路 / Intake source / Sumber intake"),
+  businessFlag: z
+    .enum(["sugukuru", "win", "shared"])
+    .optional()
+    .describe("事業区分（スグクル／WIN／共通） / Business flag (Sugukuru/WIN/shared) / Klasifikasi bisnis"),
 });
 
 const inputSchema = {
@@ -47,7 +51,7 @@ const inputSchema = {
 
 export function registerJobOrderConfirm(server: McpServer, context: ServiceContext): void {
   server.registerTool(
-    "job_order.confirm",
+    "job_order_confirm",
     {
       title: "求人を帳簿①へ確定する",
       description:

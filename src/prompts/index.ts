@@ -11,6 +11,8 @@ import { registerCorrectDocumentPrompt } from "./correct-document.js";
 import { registerMorningScanPrompt } from "./morning-scan.js";
 import { registerMatchCandidatesPrompt } from "./match-candidates.js";
 import { registerWeeklyReviewPrompt } from "./weekly-review.js";
+import { registerStage0IntakePrompt } from "./stage0-intake.js";
+import { registerWf25hPlacementPrompt } from "./wf-25h-placement.js";
 
 export function registerAllPrompts(server: McpServer, context: ServiceContext): void {
   registerIntakeJobOrderPrompt(server, context);
@@ -19,4 +21,6 @@ export function registerAllPrompts(server: McpServer, context: ServiceContext): 
   registerMorningScanPrompt(server, context);
   registerMatchCandidatesPrompt(server, context);
   registerWeeklyReviewPrompt(server, context);
+  registerStage0IntakePrompt(server, context);
+  registerWf25hPlacementPrompt(server, context);
 }

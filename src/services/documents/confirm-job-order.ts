@@ -40,6 +40,7 @@ export interface ConfirmJobOrderFields {
   t2pFlag: boolean;
   refundSystem: boolean;
   source: "zcareer" | "exord" | "direct" | "sns";
+  businessFlag?: "sugukuru" | "win" | "shared";
 }
 
 export interface ConfirmJobOrderInput {
@@ -97,6 +98,7 @@ export async function confirmJobOrder(db: Db, input: ConfirmJobOrderInput): Prom
       t2pFlag: input.fields.t2pFlag,
       refundSystem: input.fields.refundSystem,
       source: input.fields.source,
+      businessFlag: input.fields.businessFlag ?? "sugukuru",
       sourceArtifactId: input.sourceArtifactId,
       status: "open",
     });

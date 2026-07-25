@@ -24,7 +24,7 @@ const inputSchema = {
 
 export function registerDocumentRecordDelivery(server: McpServer, context: ServiceContext): void {
   server.registerTool(
-    "document.record_delivery",
+    "document_record_delivery",
     {
       title: "書類の交付を記録する",
       description:

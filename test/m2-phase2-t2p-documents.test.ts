@@ -470,6 +470,58 @@ describe("M2 Phase 2: F6A hiredルート（placement.confirm→帳簿③posting�
     const rows = await db.select().from(feeRecords).where(eq(feeRecords.referralId, jobOrderReferralId));
     expect(rows).toHaveLength(1);
   });
+
+  it("P5/WIN移行は手数料協議中でも帳簿③へ保留行を残す / P5 WIN transition keeps a pending Ledger #3 row even before the fee is fixed", async () => {
+    const { jobOrderId } = await confirmSampleJobOrder();
+    const { jobSeekerId } = await confirmSampleJobSeeker();
+    const { jobOrderReferralId } = await confirmJobOrderReferral(db, {
+      tenantId,
+      principal: requester,
+      requestId: randomUUID(),
+      idempotencyKey: randomUUID(),
+      reason: "P5/WIN移行テスト",
+      jobOrderId,
+      jobSeekerId,
+      referredAt: "2026-06-20",
+      type: "pure",
+      businessFlag: "win",
+      placementPattern: "P5",
+      conditionsTyped: T2P_REFERRAL_CONDITIONS,
+    });
+
+    const placement = await confirmPlacement(db, {
+      tenantId,
+      principal: requester,
+      requestId: randomUUID(),
+      idempotencyKey: randomUUID(),
+      reason: "P5/WIN移行の成約保留テスト",
+      jobOrderReferralId,
+      outcomeInput: {
+        outcome: "hired",
+        hiredAt: "2026-12-15",
+        indefiniteEmployment: true,
+        employer: {
+          companyId: randomUUID(),
+          name: "WIN国際協同支援先",
+          address: "鹿児島県鹿児島市",
+          representative: "代表　山田",
+          contactPerson: "山田",
+        },
+        feeStatus: "pending_negotiation",
+        conversionTerms: CONVERSION_TERMS,
+      },
+    });
+
+    const [referral] = await db.select().from(jobOrderReferrals).where(eq(jobOrderReferrals.id, jobOrderReferralId));
+    expect(referral?.conversionType).toBe("win_transition");
+    expect(referral?.businessFlag).toBe("win");
+    expect(referral?.revenueCategory).toBe("win_management");
+
+    const [feeRecord] = await db.select().from(feeRecords).where(eq(feeRecords.id, placement.feeRecordId!));
+    expect(feeRecord?.feeStatus).toBe("pending_negotiation");
+    expect(feeRecord?.feeType).toBeNull();
+    expect(feeRecord?.amountInclTax).toBeNull();
+  });
 });
 
 describe("M2 Phase 2: F6B rejectedルート（placement.confirm→⑧→record_rejection_reason→⑨） / F6B rejected route (placement.confirm -> ⑧ -> record_rejection_reason -> ⑨)", () => {

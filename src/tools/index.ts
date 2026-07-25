@@ -28,6 +28,8 @@ import { registerInquiryRecord } from "./inquiry-record.js";
 import { registerInquiryUpdate } from "./inquiry-update.js";
 import { registerInquiryPromote } from "./inquiry-promote.js";
 import { registerKpiWeeklySummary } from "./kpi-weekly-summary.js";
+import { registerReportMonthlySummary } from "./report-monthly-summary.js";
+import { registerInvoiceCreateDraft } from "./invoice-create-draft.js";
 
 export function registerAllTools(server: McpServer, context: ServiceContext): void {
   registerJobOrderAnalyze(server, context);
@@ -53,4 +55,6 @@ export function registerAllTools(server: McpServer, context: ServiceContext): vo
   registerInquiryUpdate(server, context);
   registerInquiryPromote(server, context);
   registerKpiWeeklySummary(server, context);
+  registerReportMonthlySummary(server, context);
+  registerInvoiceCreateDraft(server, context);
 }

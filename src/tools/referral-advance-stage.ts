@@ -23,7 +23,7 @@ const inputSchema = {
 
 export function registerReferralAdvanceStage(server: McpServer, context: ServiceContext): void {
   server.registerTool(
-    "referral.advance_stage",
+    "referral_advance_stage",
     {
       title: "選考段階を進める",
       description:

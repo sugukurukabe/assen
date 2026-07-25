@@ -28,7 +28,7 @@ const inputSchema = {
 
 export function registerJobOrderGateCheck(server: McpServer, context: ServiceContext): void {
   server.registerTool(
-    "job_order.gate_check",
+    "job_order_gate_check",
     {
       title: "職安法G1監督職判定を行う",
       description:

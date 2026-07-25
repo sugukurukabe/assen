@@ -31,6 +31,8 @@ import { logMessage } from "../../lib/logger.js";
 import { notifySlackOnApprovalRequested } from "./handlers/slack-approval-notifier.js";
 import { notifySlackOnPlacementConfirmed } from "./handlers/slack-placement-notifier.js";
 import { notifySlackOnWeeklyKpi } from "./handlers/slack-kpi-notifier.js";
+import { notifySlackOnT2pDeadlineApproaching, notifySlackOnT2pDeadlinesCreated } from "./handlers/slack-deadline-notifier.js";
+import { enqueueDailyMaintenance } from "./daily-maintenance.js";
 import { enqueueMondayWeeklyKpiIfDue } from "./monday-kpi.js";
 import type { OutboxHandler } from "./worker.js";
 import { processOutboxBatchForAllTenants } from "./worker.js";
@@ -42,6 +44,8 @@ const handlers: Record<string, OutboxHandler> = {
   "document.approval_requested": notifySlackOnApprovalRequested,
   "placement.confirmed": notifySlackOnPlacementConfirmed,
   "kpi.weekly_requested": notifySlackOnWeeklyKpi,
+  "t2p.deadlines_created": notifySlackOnT2pDeadlinesCreated,
+  "t2p.deadline_approaching": notifySlackOnT2pDeadlineApproaching,
 };
 
 async function main(): Promise<void> {
@@ -74,6 +78,10 @@ async function main(): Promise<void> {
       const monday = await enqueueMondayWeeklyKpiIfDue(db);
       if (monday.enqueued > 0) {
         logMessage("info", "月曜週次KPIをoutboxへ投入しました / enqueued Monday weekly KPI", monday);
+      }
+      const daily = await enqueueDailyMaintenance(db);
+      if (daily.deadlineReminders > 0 || daily.staleInquiriesClosed > 0) {
+        logMessage("info", "日次メンテナンスを実行しました / ran daily maintenance", daily);
       }
       const result = await processOutboxBatchForAllTenants(db, handlers, 10);
       if (result.processed > 0 || result.failed > 0) {

@@ -125,7 +125,7 @@ describe("inquiry two-stage intake", () => {
     expect(row?.status).toBe("promoted");
   });
 
-  it("closeStaleInquiries closes set_sent without complete set after 3 days", async () => {
+  it("closeStaleInquiries closes set_sent without complete set after 7 days", async () => {
     const recorded = await recordInquiry(scoped.db, {
       tenantId,
       displayName: "STALE",
@@ -140,8 +140,8 @@ describe("inquiry two-stage intake", () => {
       },
     });
     await updateInquiry(scoped.db, { inquiryId: recorded.inquiryId, setSent: true });
-    const fourDaysAgo = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000);
-    await scoped.db.update(inquiries).set({ setSentAt: fourDaysAgo }).where(eq(inquiries.id, recorded.inquiryId));
+    const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
+    await scoped.db.update(inquiries).set({ setSentAt: eightDaysAgo }).where(eq(inquiries.id, recorded.inquiryId));
 
     const result = await closeStaleInquiries(scoped.db, tenantId);
     expect(result.closedCount).toBeGreaterThanOrEqual(1);

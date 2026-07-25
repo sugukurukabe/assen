@@ -355,19 +355,19 @@ LLMの担当は**抽出・出典記録・信頼度付与・矛盾提示・欠落
 
 | 群 | ツール | 種別 | 内容 |
 |---|---|---|---|
-| 取込 | `job_order.analyze` | read | 原文→source_artifacts保存＋fact_assertions生成＋欠落列挙。**DB確定記帳しない** |
-| | `job_order.confirm` | write | 検証済み事実からjob_orders確定＋帳簿posting |
-| | `job_seeker.analyze` / `job_seeker.confirm` | read/write | 同上（求職側） |
-| 書類 | `document.preview` | read | 生成前プレビュー（差込値・出典・充足状況） |
-| | `document.generate_draft` | write | draft生成（GCS保存＋documents行） |
-| | `document.request_approval` | write | approval_requests作成（hash・nonce・期限つき） |
-| | `document.approve` | write | 承認。**actorは認証主体から導出。入力で承認者名を受けない** |
-| | `document.attach_executed_copy` | write | 署名済み正本（スキャン/電子署名）の添付＋hash登録 |
-| | `document.record_delivery` | write | 交付記録（方法・日時・電子交付同意・メッセージID） |
-| | `document.supersede` | write | 訂正版発行（理由必須・旧版はsuperseded） |
-| 成立 | `placement.confirm` | write | 就職成立＋帳簿③posting（referral採否・採用日・禁止期間自動設定） |
+| 取込 | `job_order_analyze` | read | 原文→source_artifacts保存＋fact_assertions生成＋欠落列挙。**DB確定記帳しない** |
+| | `job_order_confirm` | write | 検証済み事実からjob_orders確定＋帳簿posting |
+| | `job_seeker.analyze` / `job_seeker_confirm` | read/write | 同上（求職側） |
+| 書類 | `document_preview` | read | 生成前プレビュー（差込値・出典・充足状況） |
+| | `document_generate_draft` | write | draft生成（GCS保存＋documents行） |
+| | `document_request_approval` | write | approval_requests作成（hash・nonce・期限つき） |
+| | `document_approve` | write | 承認。**actorは認証主体から導出。入力で承認者名を受けない** |
+| | `document_attach_executed_copy` | write | 署名済み正本（スキャン/電子署名）の添付＋hash登録 |
+| | `document_record_delivery` | write | 交付記録（方法・日時・電子交付同意・メッセージID） |
+| | `document_supersede` | write | 訂正版発行（理由必須・旧版はsuperseded） |
+| 成立 | `placement_confirm` | write | 就職成立＋帳簿③posting（referral採否・採用日・禁止期間自動設定） |
 | | `invoice.create_draft` | write(openWorld) | freee請求ドラフト（外部処理はoutbox経由） |
-| 判定 | `compliance.evaluate` | read | 単一subjectの決定論ルール判定→findings（5値） |
+| 判定 | `compliance_evaluate` | read | 単一subjectの決定論ルール判定→findings（5値） |
 | | `finding.resolve` | write | finding解消（是正内容・証拠必須） |
 | 報告 | `report.start` / `report.status` / `report.result` | task | 様式8/11・マージン率の集計ジョブ（Tasks＋pollingフォールバック） |
 | 出力 | `ledger.export` | read | 帳簿①②③・台帳の様式出力 |

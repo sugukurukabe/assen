@@ -30,6 +30,10 @@ const clientSnapshotSchema = z.object({
 });
 
 const assignmentFieldsSchema = z.object({
+  businessFlag: z
+    .enum(["sugukuru", "win", "shared"])
+    .optional()
+    .describe("事業区分（スグクル／WIN／共通） / Business flag (Sugukuru/WIN/shared) / Klasifikasi bisnis"),
   t2pFlag: z.boolean().describe("紹介予定派遣か / Is this T2P / Apakah ini T2P"),
   startDate: z.string().describe("派遣開始日(YYYY-MM-DD) / Dispatch start date / Tanggal mulai dispatch"),
   endDate: z.string().optional().describe("派遣終了日(YYYY-MM-DD) / Dispatch end date / Tanggal akhir dispatch"),
@@ -85,7 +89,7 @@ const inputSchema = {
 
 export function registerDispatchAssignmentConfirm(server: McpServer, context: ServiceContext): void {
   server.registerTool(
-    "dispatch_assignment.confirm",
+    "dispatch_assignment_confirm",
     {
       title: "派遣就業を確定し派遣元管理台帳へ記帳する",
       description:

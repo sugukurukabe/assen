@@ -15,7 +15,18 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 
 // /oauth/jwks.json: OAuth/OIDC公開鍵は仕様上どこからでも取得可能であることが前提のため、常に全origin許可に含める
 // /oauth/jwks.json: OAuth/OIDC public keys are expected by spec to be fetchable from anywhere, so it is always allow-all too
-const DISCOVERY_PATHS: ReadonlySet<string> = new Set(["/health", "/ready", "/.well-known/mcp.json", "/oauth/jwks.json"]);
+const DISCOVERY_PATHS: ReadonlySet<string> = new Set([
+  "/health",
+  "/ready",
+  "/.well-known/mcp.json",
+  "/.well-known/oauth-protected-resource",
+  "/.well-known/oauth-authorization-server",
+  "/oauth/jwks.json",
+  "/oauth/register",
+  "/oauth/authorize",
+  "/oauth/callback",
+  "/oauth/token",
+]);
 
 // StreamableHTTP transportが読み書きするMCP固有ヘッダー（@modelcontextprotocol/sdkのsrc実装に準拠）
 // MCP-specific headers read/written by the Streamable HTTP transport (per @modelcontextprotocol/sdk's implementation)
@@ -60,7 +71,8 @@ export function applyCorsHeaders(
 
   if (DISCOVERY_PATHS.has(path)) {
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", MCP_REQUEST_HEADERS);
     return isPreflight;
   }
 

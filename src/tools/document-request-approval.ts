@@ -20,7 +20,7 @@ const inputSchema = {
 
 export function registerDocumentRequestApproval(server: McpServer, context: ServiceContext): void {
   server.registerTool(
-    "document.request_approval",
+    "document_request_approval",
     {
       title: "書類の承認を依頼する",
       description:

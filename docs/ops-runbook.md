@@ -19,7 +19,7 @@ Dokumen ini adalah prosedur eksekusi untuk bagian G checklist, "Provisioning ins
 | `assen-migrator`（Cloud Run Job) | ✅ 作成・実行成功 | |
 | `assen-runtime`（Cloud Run Service） | ✅ デプロイ済み・稼働中 | `https://assen-runtime-000000000000.asia-northeast1.run.app` 。`GOOGLE_OAUTH_CLIENT_ID`は実際の値を設定済み。IAM invokerは`allUsers`に開放（理由は8節参照）。`gcloud run services describe`は`https://assen-runtime-aeqvsod3aq-an.a.run.app`（hash形式）を正規URLとして返すが、project番号形式のURLも同じサービスに解決することを確認済み。`OAUTH_ISSUER`/`OAUTH_JWKS_URI`はproject番号形式で設定した |
 | `assen-outbox-worker`（Worker Pool） | ✅ デプロイ済み・稼働中 | |
-| Google Sign-In → Assen JWT → MCP `initialize` のE2Eテスト | ✅ 成功（2026-07-24） | 実際のGoogle Workspaceブラウザログイン→`/oauth/token-exchange`→発行されたAssen JWTで`/mcp`の`initialize`が200で成功することを確認済み。手順は[`docs/team-guide.md`](team-guide.md)3.3節、再利用可能なツールは`scripts/get-assen-token.ts`（`pnpm run auth:get-token`） |
+| ClaudeワンクリックOAuth → Assen JWT → MCP `tools/list` | 実装済み・デプロイ後確認待ち | `/mcp`の401 `WWW-Authenticate`、RFC 9728 Protected Resource Metadata、DCR、PKCE、refresh token rotationを実装済み。Google Console callback URIとCloud Run Secret設定後にClaude ConnectorでE2E確認する |
 | Slack承認通知連携 | ✅ 設定済み・稼働確認済み（2026-07-24） | 既存の`sugukuru_slack_bot_token`（aiosxagent bot）を再利用し、`#審査完了`（`C00000000`）へ`chat.postMessage`が成功することを確認済み。詳細は6.3節追記参照 |
 
 **未完了・要フォローアップ**：ネットワーク層の追加防御（IAP／VPN）は現時点でドメイン・VPN機器の前提が無いため**意図的に見送り**（アプリ層OAuth＋allowlistを当面の正式方針として採用、8節参照）、GitHub Actions環境保護は未設定（`sugukurukabe`個人アカウントのGitHub Freeプランでは`required reviewers`保護ルール自体が使えないため、有料プランへのアップグレードか代替手段が必要、8節参照）。
@@ -221,16 +221,18 @@ python3 -c "import json; print(json.load(open('/tmp/assen-hmac.json'))['secret']
 printf '[{"email":"admin@example.co.jp","role":"admin","tenantId":"<tenant_settingsのtenant_id>"}]' | \
   gcloud secrets create assen-token-exchange-allowlist --project=REDACTED-GCP-PROJECT --replication-policy=user-managed --locations=asia-northeast1 --data-file=-
 
-# SLACK_BOT_TOKEN/SLACK_APPROVAL_CHANNEL_ID: 未作成（Slackアプリを作成後に追加する。未設定の間はoutbox handlerがログ出力のみに留まる。8節参照）
+# GOOGLE_OAUTH_CLIENT_SECRET（ワンクリックOAuthのGoogle code exchange用。画面には印字しない）
+printf '%s' "$GOOGLE_OAUTH_CLIENT_SECRET" | \
+  gcloud secrets create assen-google-oauth-client-secret --project=REDACTED-GCP-PROJECT --replication-policy=user-managed --locations=asia-northeast1 --data-file=-
 ```
 
 各Secretに、参照する側のサービスアカウントへ`roles/secretmanager.secretAccessor`を付与する（実行済み。`assen-migrator`もSTORAGE_*環境変数のenv検証が必須なため、STORAGE系2つも追加で付与した点が当初想定との差分）：
 
 ```bash
-# assen-runtime: 全7 secretへアクセス
+# assen-runtime: runtimeが参照するsecretへアクセス
 for SECRET in assen-database-url assen-pii-encryption-key \
   assen-token-exchange-signing-key assen-token-exchange-allowlist \
-  assen-storage-access-key assen-storage-secret-key; do
+  assen-storage-access-key assen-storage-secret-key assen-google-oauth-client-secret; do
   gcloud secrets add-iam-policy-binding "$SECRET" --project=REDACTED-GCP-PROJECT \
     --member="serviceAccount:assen-runtime@REDACTED-GCP-PROJECT.iam.gserviceaccount.com" \
     --role="roles/secretmanager.secretAccessor"
@@ -251,7 +253,7 @@ for SECRET in assen-database-url assen-storage-access-key assen-storage-secret-k
 done
 ```
 
-## 6. Cloud Run（初回作成。以降は[`compliance-deploy.yml`](../../../.github/workflows/compliance-deploy.yml)がrevision更新する） / Cloud Run (initial creation; subsequent revisions are updated by compliance-deploy.yml) / Cloud Run (pembuatan awal; revisi selanjutnya diperbarui oleh compliance-deploy.yml)
+## 6. Cloud Run（初回作成。以降は[`deploy.yml`](../.github/workflows/deploy.yml)がrevision更新する） / Cloud Run (initial creation; subsequent revisions are updated by deploy.yml) / Cloud Run (pembuatan awal; revisi selanjutnya diperbarui oleh deploy.yml)
 
 **実行済み（2026-07-24）**。当初想定との差分：
 
@@ -325,9 +327,31 @@ gcloud run deploy assen-runtime \
    これにより実質的なアクセス制御は完全にアプリ層（`AUTH_MODE=oauth`のBearer JWT検証＋`TOKEN_EXCHANGE_ALLOWLIST_JSON`）に一本化された。ネットワーク層の追加防御（IAP／VPN）は8節の残タスク。
 3. E2E動作確認（`scripts/get-assen-token.ts`で実施）：実際のGoogle Workspaceログイン→Google ID Token取得→`/oauth/token-exchange`でAssen JWT取得→`/mcp`への`initialize`呼び出しが200で成功。この際、`/mcp`は`Accept: application/json, text/event-stream`ヘッダが無いと406を返す仕様（MCP Streamable HTTPの標準仕様どおり、Cloud Run固有の問題ではない）ことも確認した。
 
+**2026-07-25 追記（ClaudeワンクリックOAuth）**：
+
+1. Google Cloud ConsoleのOAuth 2.0 Client（Web application）にAuthorized redirect URIを追加する：
+   ```text
+   https://assen-runtime-000000000000.asia-northeast1.run.app/oauth/callback
+   ```
+2. `GOOGLE_OAUTH_CLIENT_SECRET`をSecret Managerへ保存し、`assen-runtime`へ渡す：
+   ```bash
+   gcloud run services update assen-runtime \
+     --project=REDACTED-GCP-PROJECT --region=asia-northeast1 \
+     --update-secrets=GOOGLE_OAUTH_CLIENT_SECRET=assen-google-oauth-client-secret:latest
+   ```
+3. OAuth AS用migration（`0004_one_click_oauth_as.sql`）を反映する：
+   ```bash
+   gcloud run jobs update assen-migrator \
+     --project=REDACTED-GCP-PROJECT --region=asia-northeast1 \
+     --image=asia-northeast1-docker.pkg.dev/REDACTED-GCP-PROJECT/assen/migrator:<commit-sha>
+   gcloud run jobs execute assen-migrator \
+     --project=REDACTED-GCP-PROJECT --region=asia-northeast1 --wait
+   ```
+4. Claude Connectorで`https://assen-runtime-000000000000.asia-northeast1.run.app/mcp`を追加し、Google Workspaceログイン→`tools/list`が25本返ることを確認する。`TOKEN_EXCHANGE_ALLOWLIST_JSON`にないemailは従来どおり拒否される。
+
 ### 6.3 outbox-worker（Cloud Run Worker Pool）
 
-`src/services/outbox-worker/run.ts`はHTTPポートを開かない常駐pollerのため、Cloud Run Servicesではなく**Worker Pools**（`gcloud run worker-pools deploy`）を使う（[`cloud-run-basics`スキル](file:///Users/kabe/.claude/skills/cloud-run-basics/SKILL.md)の分類に従う。ServicesはHTTPリクエスト応答用、Worker PoolsはPub/Sub pull等と同種の常駐pull型処理用）。SLACK関連は未設定のため`--set-secrets`から除外している（設定後は`gcloud run worker-pools deploy`を再実行して追加すること）：
+`src/services/outbox-worker/run.ts`はHTTPポートを開かない常駐pollerのため、Cloud Run Servicesではなく**Worker Pools**（`gcloud run worker-pools deploy`）を使う。Slack OS v7.2では`SLACK_KPI_CHANNEL_ID`（#15相当）・`SLACK_FINANCE_CHANNEL_ID`（#40相当）・`SLACK_BOARD_CHANNEL_ID`（#95相当）をGitHub variables / Worker Pool環境変数で管理する。`SLACK_BOT_TOKEN`のみSecret Managerから注入する：
 
 ```bash
 # grpc/cffiが必要（このマシンでは専用venvを用意した。6節冒頭の差分参照）
@@ -367,7 +391,15 @@ gcloud run worker-pools deploy assen-outbox-worker \
 
 ## 7. GitHub Actions側の設定 / GitHub Actions setup / Setelan sisi GitHub Actions
 
-[`.github/workflows/compliance-deploy.yml`](../../../.github/workflows/compliance-deploy.yml)は`environment: assen-internal`を`migrate`/`deploy-runtime`/`deploy-outbox-worker`ジョブに指定している。GitHub repo設定（Settings → Environments → New environment → `assen-internal`）でrequired reviewers（壁を含む）を設定することで、デプロイ前に人の承認を必須化する。未設定のままだとゲートなしでデプロイが進むため、**運用開始前に必ず設定すること（未実施）**。
+ [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml)は`environment: assen-internal`を`migrate`/`deploy-runtime`/`deploy-outbox-worker`ジョブに指定している。GitHub repo設定（Settings → Environments → New environment → `assen-internal`）でrequired reviewers（壁を含む）を設定することで、デプロイ前に人の承認を必須化する。未設定のままだとゲートなしでデプロイが進むため、**運用開始前に必ず設定すること**。
+
+### 6.5 Rollback / ロールバック / Rollback
+
+問題時はDB列・テーブルを削除せず、Cloud Run runtimeとWorker Poolを直前imageへ戻す。`deploy.yml`実行前に記録したruntime revision、worker revision、image SHAへ戻し、`0005/0006`は加算的migrationとして残す。migration適用前に失敗した場合はruntime/workerを更新しない。
+
+If a release fails, do not drop the new DB columns/tables. Roll the Cloud Run service and Worker Pool back to the previously recorded revisions/image SHA. Keep `0005/0006` in place as additive migrations. If migration fails before runtime deployment, do not update runtime/worker.
+
+Jika rilis gagal, jangan hapus kolom/tabel DB baru. Kembalikan Cloud Run service dan Worker Pool ke revision/image SHA sebelumnya. Biarkan `0005/0006` sebagai migrasi tambahan. Jika migrasi gagal sebelum deploy runtime, jangan update runtime/worker.
 
 ## 8. 残タスク（2026-07-24時点） / Remaining follow-ups / Tugas lanjutan
 

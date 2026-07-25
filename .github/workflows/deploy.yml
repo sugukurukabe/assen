@@ -148,6 +148,16 @@ jobs:
           image: ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/assen/runtime:${{ github.sha }}
           no_traffic: false
 
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: 月次ボード投稿先を更新 / Update monthly board channel
+        if: vars.SLACK_BOARD_CHANNEL_ID != ''
+        run: |
+          gcloud run services update assen-runtime \
+            --project="${{ secrets.GCP_PROJECT_ID }}" \
+            --region="${{ env.REGION }}" \
+            --update-env-vars="SLACK_BOARD_CHANNEL_ID=${{ vars.SLACK_BOARD_CHANNEL_ID }}"
+
   # --------------------------------------------------------------------------
   # Deploy outbox-worker（常駐pollerはCloud Run Servicesではなく公式のWorker Poolsで運用する）
   # --------------------------------------------------------------------------
@@ -168,9 +178,28 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v2
 
       - name: assen-outbox-worker Worker Poolのイメージを更新 / Update the assen-outbox-worker worker pool's image
+        env:
+          SLACK_KPI_CHANNEL_ID: ${{ vars.SLACK_KPI_CHANNEL_ID }}
+          SLACK_FINANCE_CHANNEL_ID: ${{ vars.SLACK_FINANCE_CHANNEL_ID }}
+          SLACK_BOARD_CHANNEL_ID: ${{ vars.SLACK_BOARD_CHANNEL_ID }}
         run: |
+          ENV_UPDATES=""
+          if [ -n "${SLACK_KPI_CHANNEL_ID}" ]; then
+            ENV_UPDATES="${ENV_UPDATES},SLACK_KPI_CHANNEL_ID=${SLACK_KPI_CHANNEL_ID}"
+          fi
+          if [ -n "${SLACK_FINANCE_CHANNEL_ID}" ]; then
+            ENV_UPDATES="${ENV_UPDATES},SLACK_FINANCE_CHANNEL_ID=${SLACK_FINANCE_CHANNEL_ID}"
+          fi
+          if [ -n "${SLACK_BOARD_CHANNEL_ID}" ]; then
+            ENV_UPDATES="${ENV_UPDATES},SLACK_BOARD_CHANNEL_ID=${SLACK_BOARD_CHANNEL_ID}"
+          fi
+          ENV_FLAG=()
+          if [ -n "${ENV_UPDATES}" ]; then
+            ENV_FLAG=(--update-env-vars="${ENV_UPDATES#,}")
+          fi
           gcloud run worker-pools deploy assen-outbox-worker \
             --project="${{ secrets.GCP_PROJECT_ID }}" \
             --region="${{ env.REGION }}" \
             --image="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/assen/outbox-worker:${{ github.sha }}" \
+            "${ENV_FLAG[@]}" \
             --quiet

@@ -33,12 +33,13 @@ const inputSchema = {
     desiredOccupation: z.string(),
     acceptedAt: z.string().describe("求職受理日。省略時はセット受領日を使う / Acceptance date; defaults to set receipt date / Tanggal penerimaan; default tanggal terima paket"),
     validUntil: z.string(),
+    businessFlag: z.enum(["sugukuru", "win", "shared"]).optional().describe("事業区分（スグクル／WIN／共通） / Business flag / Klasifikasi bisnis"),
   }),
 };
 
 export function registerInquiryPromote(server: McpServer, context: ServiceContext): void {
   server.registerTool(
-    "inquiry.promote",
+    "inquiry_promote",
     {
       title: "問い合わせを候補者へ昇格する",
       description:

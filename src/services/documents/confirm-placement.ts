@@ -26,7 +26,7 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "../../db/schema/index.js";
-import { feeRecords, jobOrderReferrals, jobOrders, jobSeekers } from "../../db/schema/ledgers.js";
+import { feeInvoiceDrafts, feeRecords, jobOrderReferrals, jobOrders, jobSeekers } from "../../db/schema/ledgers.js";
 import { transactionalOutbox } from "../../db/schema/outbox.js";
 import { createPartySnapshot } from "./party-snapshot.js";
 import { appendAuditEvent } from "../../audit/hash-chain.js";
@@ -62,14 +62,22 @@ export interface FeeInput {
   collectedAt?: string;
 }
 
+export type ConversionType = "t2p_conversion" | "win_transition" | "standard_placement_hire";
+export type FeeStatus = "billable" | "pending_negotiation" | "on_hold";
+
 export interface ConfirmPlacementHiredInput {
   outcome: "hired";
   hiredAt: string;
   indefiniteEmployment: boolean;
   employer: EmployerSnapshotInput;
+  conversionType?: ConversionType;
+  feeStatus?: FeeStatus;
+  revenueCategory?: "pure_placement" | "dispatch_hire" | "win_management";
+  expectedRevenueMin?: number;
+  expectedRevenueMax?: number;
   // ⑦転換条件覚書の差込項目（conditionsTypedへマージ） / ⑦ conversion-memo fields (merged into conditionsTyped) / Field memo konversi ⑦ (digabung ke conditionsTyped)
   conversionTerms: Record<string, unknown>;
-  fee: FeeInput;
+  fee?: FeeInput;
 }
 
 export interface ConfirmPlacementRejectedInput {
@@ -102,9 +110,11 @@ export interface AdHocFilingGuidance {
 export interface FeeInvoiceDraft {
   title: string;
   referralId: string;
-  feeRecordId: string;
-  amountInclTax: number;
-  feeType: string;
+  feeRecordId?: string;
+  amountInclTax?: number;
+  feeType?: string;
+  feeStatus: FeeStatus;
+  revenueCategory?: string;
   payerCompanyId: string;
   payerName: string;
   hiredAt: string;
@@ -131,21 +141,29 @@ function addDays(isoDate: string, days: number): string {
 
 function buildFeeInvoiceDraft(params: {
   referralId: string;
-  feeRecordId: string;
-  fee: FeeInput;
+  feeRecordId?: string;
+  fee?: FeeInput;
+  feeStatus: FeeStatus;
   employer: EmployerSnapshotInput;
   hiredAt: string;
+  conversionType: ConversionType;
+  revenueCategory?: string;
 }): FeeInvoiceDraft {
+  const isPending = params.feeStatus === "pending_negotiation";
   const bodyText = [
     "紹介手数料請求ドラフト / Placement fee invoice draft / Draf tagihan fee penyaluran",
     `求人企業: ${params.employer.name}（${params.employer.companyId}）`,
     `成約日: ${params.hiredAt}`,
-    `手数料区分: ${params.fee.feeType}`,
-    `請求額（税込）: ¥${params.fee.amountInclTax.toLocaleString("ja-JP")}`,
-    params.fee.calcBasisWage !== undefined ? `算定基礎賃金: ¥${params.fee.calcBasisWage.toLocaleString("ja-JP")}` : undefined,
-    params.fee.calcBasisRate !== undefined ? `算定基礎率: ${params.fee.calcBasisRate}` : undefined,
+    `転換種別: ${params.conversionType}`,
+    params.revenueCategory ? `成果区分: ${params.revenueCategory}` : undefined,
+    `手数料ステータス: ${params.feeStatus}`,
+    params.fee ? `手数料区分: ${params.fee.feeType}` : undefined,
+    params.fee ? `請求額（税込）: ¥${params.fee.amountInclTax.toLocaleString("ja-JP")}` : undefined,
+    params.fee?.calcBasisWage !== undefined ? `算定基礎賃金: ¥${params.fee.calcBasisWage.toLocaleString("ja-JP")}` : undefined,
+    params.fee?.calcBasisRate !== undefined ? `算定基礎率: ${params.fee.calcBasisRate}` : undefined,
     `referral_id: ${params.referralId}`,
-    `fee_record_id: ${params.feeRecordId}`,
+    params.feeRecordId ? `fee_record_id: ${params.feeRecordId}` : undefined,
+    isPending ? "P5/WIN移行など手数料協議中のため、請求は保留。成約記帳と成約カウントのみ先行。" : undefined,
     "※求職者からの徴収は禁止（職安法32条の3）。就職成立後のみ企業へ請求。",
   ]
     .filter(Boolean)
@@ -155,8 +173,10 @@ function buildFeeInvoiceDraft(params: {
     title: "紹介手数料請求ドラフト",
     referralId: params.referralId,
     feeRecordId: params.feeRecordId,
-    amountInclTax: params.fee.amountInclTax,
-    feeType: params.fee.feeType,
+    amountInclTax: params.fee?.amountInclTax,
+    feeType: params.fee?.feeType,
+    feeStatus: params.feeStatus,
+    revenueCategory: params.revenueCategory,
     payerCompanyId: params.employer.companyId,
     payerName: params.employer.name,
     hiredAt: params.hiredAt,
@@ -164,7 +184,15 @@ function buildFeeInvoiceDraft(params: {
   };
 }
 
-function buildAdHocFilingGuidance(hiredAt: string): AdHocFilingGuidance {
+function buildAdHocFilingGuidance(hiredAt: string, conversionType: ConversionType): AdHocFilingGuidance {
+  const winNotes =
+    conversionType === "win_transition"
+      ? [
+          "WIN移行: Driveの人材フォルダを🌠スグクル→🌞WIN国際へ移動し、支援記録は引き継ぐ",
+          "WIN transition: move the Drive person folder from Sugukuru to WIN International and carry over support records",
+          "Migrasi WIN: pindahkan folder Drive dari Sugukuru ke WIN International dan teruskan catatan dukungan",
+        ]
+      : [];
   return {
     sugukuruFiling: "3-1-2",
     receivingEmployerFiling: "3-1-1",
@@ -177,6 +205,7 @@ function buildAdHocFilingGuidance(hiredAt: string): AdHocFilingGuidance {
       "所属機関変更を伴う場合は#20へWF-20A（申請準備開始）を起票",
       "Sugukuru: file ad-hoc 3-1-2 within 14 days of the event",
       "Receiving employer: file ad-hoc 3-1-1 within 14 days of the event",
+      ...winNotes,
     ],
   };
 }
@@ -211,9 +240,42 @@ export async function confirmPlacement(db: Db, input: ConfirmPlacementInput): Pr
     const existingConditions = (referral.conditionsTyped as Record<string, unknown> | null) ?? {};
 
     if (input.outcomeInput.outcome === "hired") {
-      const { hiredAt, indefiniteEmployment, employer, conversionTerms, fee } = input.outcomeInput;
+      const { hiredAt, indefiniteEmployment, employer, conversionTerms } = input.outcomeInput;
+      const conversionType =
+        input.outcomeInput.conversionType ??
+        (referral.placementPattern === "P3" ? "t2p_conversion" : referral.placementPattern === "P5" ? "win_transition" : "standard_placement_hire");
+      const feeStatus = input.outcomeInput.feeStatus ?? "billable";
+      const fee = input.outcomeInput.fee;
+      const revenueCategory =
+        input.outcomeInput.revenueCategory ??
+        (conversionType === "win_transition" ? "win_management" : conversionType === "t2p_conversion" ? "pure_placement" : "pure_placement");
       const noPoachingUntil = addYears(hiredAt, NO_POACHING_YEARS);
-      const adHocFilingGuidance = buildAdHocFilingGuidance(hiredAt);
+      if (referral.placementPattern === "P3" && conversionType !== "t2p_conversion") {
+        throw new UserInputError(
+          "P3（紹介予定派遣）はconversionType=t2p_conversionで確定してください / P3 requires conversionType=t2p_conversion",
+          "WF-25Hの転換種別を紹介予定派遣の成立にしてください / Use the T2P conversion type",
+        );
+      }
+      if (referral.placementPattern === "P5" && conversionType !== "win_transition") {
+        throw new UserInputError(
+          "P5（WIN移行）はconversionType=win_transitionで確定してください / P5 requires conversionType=win_transition",
+          "WF-25Hの転換種別をWIN移行にしてください / Use the WIN transition conversion type",
+        );
+      }
+      if (conversionType === "win_transition" && referral.placementPattern !== "P5") {
+        throw new UserInputError(
+          "WIN移行はplacementPattern=P5の紹介行でのみ確定できます / WIN transition requires placementPattern=P5",
+          "job_order_referral_confirmでplacementPattern=P5を明示してから成約してください / Re-create or correct the referral with placementPattern=P5",
+        );
+      }
+      if (feeStatus === "billable" && !fee) {
+        throw new UserInputError(
+          "feeStatus=billableの場合、feeが必須です / fee is required when feeStatus=billable",
+          "P5/WIN移行で請求保留にする場合はfeeStatus=pending_negotiationを指定してください / Use feeStatus=pending_negotiation for a held P5/WIN fee",
+        );
+      }
+      const adHocFilingGuidance = buildAdHocFilingGuidance(hiredAt, conversionType);
+      const referralBusinessFlag = conversionType === "win_transition" ? "win" : referral.businessFlag;
 
       // ① referral成約＋段階更新 / ① finalize referral + stage update
       await tx
@@ -225,9 +287,14 @@ export async function confirmPlacement(db: Db, input: ConfirmPlacementInput): Pr
           noPoachingUntil,
           phase: "F6",
           selectionStage: "placed",
+          conversionType,
+          businessFlag: referralBusinessFlag,
+          revenueCategory,
+          expectedRevenueMin: input.outcomeInput.expectedRevenueMin?.toString(),
+          expectedRevenueMax: input.outcomeInput.expectedRevenueMax?.toString(),
           placedAt: hiredAt,
           offerAt: referral.offerAt ?? hiredAt,
-          conditionsTyped: { ...existingConditions, ...conversionTerms, adHocFilingGuidance },
+          conditionsTyped: { ...existingConditions, ...conversionTerms, conversionType, feeStatus, adHocFilingGuidance },
           updatedAt: new Date(),
         })
         .where(eq(jobOrderReferrals.id, input.jobOrderReferralId));
@@ -250,18 +317,19 @@ export async function confirmPlacement(db: Db, input: ConfirmPlacementInput): Pr
         takenReason: "placement_confirm",
       });
 
-      // ① 帳簿③記帳 / ① post Ledger #3
+      // ① 帳簿③記帳。P5など金額未定でもfeeStatus=pending_negotiationの保留行を残す / Post Ledger #3 even when pending / Catat Buku Besar #3 meski tertunda
       const feeRecordId = randomUUID();
       await tx.insert(feeRecords).values({
         id: feeRecordId,
         tenantId: input.tenantId,
         referralId: input.jobOrderReferralId,
         payerSnapshotId,
-        feeType: fee.feeType,
-        amountInclTax: fee.amountInclTax.toString(),
-        calcBasisWage: fee.calcBasisWage?.toString(),
-        calcBasisRate: fee.calcBasisRate?.toString(),
-        collectedAt: fee.collectedAt,
+        feeType: fee?.feeType,
+        feeStatus,
+        amountInclTax: fee?.amountInclTax.toString(),
+        calcBasisWage: fee?.calcBasisWage?.toString(),
+        calcBasisRate: fee?.calcBasisRate?.toString(),
+        collectedAt: fee?.collectedAt,
       });
 
       // ② 手数料請求ドラフト / ② fee invoice draft
@@ -269,8 +337,23 @@ export async function confirmPlacement(db: Db, input: ConfirmPlacementInput): Pr
         referralId: input.jobOrderReferralId,
         feeRecordId,
         fee,
+        feeStatus,
         employer,
         hiredAt,
+        conversionType,
+        revenueCategory,
+      });
+      await tx.insert(feeInvoiceDrafts).values({
+        id: randomUUID(),
+        tenantId: input.tenantId,
+        referralId: input.jobOrderReferralId,
+        feeRecordId,
+        payerCompanyId: employer.companyId,
+        payerName: employer.name,
+        amountInclTax: fee?.amountInclTax.toString(),
+        feeStatus,
+        title: feeInvoiceDraft.title,
+        bodyText: feeInvoiceDraft.bodyText,
       });
 
       await appendAuditEvent(tx, {
@@ -279,7 +362,7 @@ export async function confirmPlacement(db: Db, input: ConfirmPlacementInput): Pr
         aggregateId: input.jobOrderReferralId,
         aggregateVersion: 2,
         eventType: "placement.confirmed",
-        afterHash: sha256Hex(canonicalJsonString({ jobOrderReferralId: input.jobOrderReferralId, outcome: "hired", hiredAt, feeRecordId })),
+        afterHash: sha256Hex(canonicalJsonString({ jobOrderReferralId: input.jobOrderReferralId, outcome: "hired", hiredAt, feeRecordId, conversionType, feeStatus })),
         principal: input.principal,
         requestId: input.requestId,
       });
@@ -295,6 +378,8 @@ export async function confirmPlacement(db: Db, input: ConfirmPlacementInput): Pr
           outcome: "hired",
           feeRecordId,
           reason: input.reason,
+          conversionType,
+          feeStatus,
           feeInvoiceDraft,
           adHocFilingGuidance,
         },

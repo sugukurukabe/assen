@@ -31,7 +31,7 @@ const inputSchema = {
 
 export function registerDocumentPreview(server: McpServer, context: ServiceContext): void {
   server.registerTool(
-    "document.preview",
+    "document_preview",
     {
       title: "書類の生成前プレビューを表示する",
       description:
