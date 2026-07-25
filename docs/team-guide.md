@@ -27,7 +27,7 @@ Assenは、職安法・派遣法・労基法の**法定書類・法定帳簿**�
 Assen is an MCP server that lets AI agents generate and manage statutory documents/ledgers for Japanese employment-placement and worker-dispatch law, always gated by human approval and a tamper-evident audit trail.
 Assen adalah server MCP yang memungkinkan agen AI menghasilkan dan mengelola dokumen/buku besar wajib untuk hukum penempatan kerja dan dispatch tenaga kerja Jepang, selalu melalui persetujuan manusia dan audit trail yang tahan perubahan.
 
-**重要**：Assenが生成する文書は常に**ドラフト**です。`document.approve`で人間が承認するまで法的に確定しません。AIの判断だけで法定書類が確定することはありません。
+**重要**：Assenが生成する文書は常に**ドラフト**です。`document_approve`で人間が承認するまで法的に確定しません。AIの判断だけで法定書類が確定することはありません。
 
 ---
 
@@ -37,10 +37,10 @@ Assenの認証主体（principal）は4つのroleを持ちます。呼べるツ�
 
 | role | 想定する担当者 | できること |
 |---|---|---|
-| `requester` | 求人取込担当・派遣担当（現場の実務担当者） | 求人確定（`job_order.confirm`）、派遣就業確定（`dispatch_assignment.confirm`）、求職者確定（`job_seeker.confirm`）、紹介行確定（`job_order_referral.confirm`）、採否確定（`placement.confirm`）、不採用理由記録（`placement.record_rejection_reason`）、書類ドラフト生成・承認依頼・添付・交付記録・訂正版発行の起票 |
-| `approver` | 承認者（管理者・上長） | 承認・差戻し（`document.approve`）、`requester`と同じ起票操作（訂正版発行のみ） |
+| `requester` | 求人取込担当・派遣担当（現場の実務担当者） | 求人確定（`job_order_confirm`）、派遣就業確定（`dispatch_assignment_confirm`）、求職者確定（`job_seeker_confirm`）、紹介行確定（`job_order_referral_confirm`）、採否確定（`placement_confirm`）、不採用理由記録（`placement_record_rejection_reason`）、書類ドラフト生成・承認依頼・添付・交付記録・訂正版発行の起票 |
+| `approver` | 承認者（管理者・上長） | 承認・差戻し（`document_approve`）、`requester`と同じ起票操作（訂正版発行のみ） |
 | `admin` | システム管理者 | 上記すべて |
-| `system` | 内部バッチ・outbox worker等（人間は通常使わない） | 現時点ではread系のみ（`compliance.evaluate`・`document.preview`）。write系のtoolはすべて拒否される |
+| `system` | 内部バッチ・outbox worker等（人間は通常使わない） | 現時点ではread系のみ（`compliance_evaluate`・`document_preview`）。write系のtoolはすべて拒否される |
 
 **現在の対象フロー（自社MVP、[`docs/registry-readiness-checklist.md`](registry-readiness-checklist.md)G節）は2つに固定されています**：①純紹介縦切り（[6章](#6-ワークフロー労働条件通知書の作成交付)）、②派遣縦切り（[6.5章](#65-ワークフロー派遣3点書類a2a3a10の作成交付)）。T2P（紹介予定派遣）書類④〜⑨の生成自体は実装済みですが、承認〜交付の運用フローとしては本ガイドの対象外です（生成のみ試す場合は[README](../README.md)のM2 Phase 2節を参照）。
 
@@ -96,7 +96,7 @@ AssenはStreamable HTTP transport（`/mcp`）で待ち受けます。Claude（De
 - ローカルCursor検証では`.env`の`AUTH_LOCAL_TOKEN`を使います。本番相当のClaude接続ではOAuth flowを使います
 - トークンはSlack等の平文チャットに貼らないでください。1人1トークンを想定し、共有アカウント運用は避けてください
 
-接続できたか確認するには、エージェントに「Assenで使えるツールを一覧して」と頼むか、`tools/list`を直接呼びます。有料紹介特化後は23個のツール（`inquiry.*`・`job_order.gate_check`/`score`/`list`・`kpi.weekly_summary`等を含む）が返れば接続成功です。対応表は[`docs/paid-placement-workflow.md`](paid-placement-workflow.md)を参照してください。
+接続できたか確認するには、エージェントに「Assenで使えるツールを一覧して」と頼むか、`tools/list`を直接呼びます。有料紹介特化後は23個のツール（`inquiry.*`・`job_order_gate_check`/`score`/`list`・`kpi_weekly_summary`等を含む）が返れば接続成功です。対応表は[`docs/paid-placement-workflow.md`](paid-placement-workflow.md)を参照してください。
 
 ### 3.3 本番相当環境（Cloud Run）に接続する — 現状 / Connecting to the production-equivalent (Cloud Run) environment — current status / Terhubung ke lingkungan setara produksi (Cloud Run) — status saat ini
 
@@ -161,14 +161,14 @@ sequenceDiagram
 
 ### 手順
 
-1. **`job_order.analyze`** — 求人メールの原文をそのまま渡します。**DBへの確定記帳は行いません**（read専用、何度呼んでもやり直せます）。原文は不変保存（`source_artifacts`）され、SHA-256で追跡可能になります。
+1. **`job_order_analyze`** — 求人メールの原文をそのまま渡します。**DBへの確定記帳は行いません**（read専用、何度呼んでもやり直せます）。原文は不変保存（`source_artifacts`）され、SHA-256で追跡可能になります。
    - 入力：`sourceText`（原文全文）、`sourceUri`（Slackメッセージリンク等）
    - 出力：`sourceArtifactId`、候補事実（fact_assertions）、欠落項目、confidence、矛盾の指摘
 2. **人間確認**：LLMが抽出した値を鵜呑みにせず、欠落・低confidence・矛盾がある項目は担当者に確認します。これは`analyze`の直後、`confirm`を呼ぶ**前**に必ず挟む工程です。
-3. **`job_order.confirm`** — 確認済みの値で帳簿①へ確定記帳します。`requester`または`admin`のみ呼べます。
+3. **`job_order_confirm`** — 確認済みの値で帳簿①へ確定記帳します。`requester`または`admin`のみ呼べます。
    - 必須：`idempotencyKey`（同一操作の再実行対策。1回の起票につき1つの一意な値を使う）、`reason`、`sourceArtifactId`、`employer`（事業所名・所在地・代表者・担当者）、`fields`（受付年月日・有効期間・求人数・職種等）
    - `confirmed_by`は入力せず、認証主体（あなたのトークンに紐づくprincipal）から自動的に導出されます
-4. **`compliance.evaluate`** — 確定した求人が法定必須項目を満たしているか確認します（read専用）。5値判定の意味は[9章](#9-法令判定complianceevaluateの見方)を参照してください。
+4. **`compliance_evaluate`** — 確定した求人が法定必須項目を満たしているか確認します（read専用）。5値判定の意味は[9章](#9-法令判定complianceevaluateの見方)を参照してください。
 
 実際のツール呼び出し例（JSON、`scripts/smoke-e2e.sh`より）は本リポジトリの[`scripts/smoke-e2e.sh`](../scripts/smoke-e2e.sh)で確認できます。
 
@@ -203,17 +203,17 @@ sequenceDiagram
 
 ### 手順
 
-1. **`document.preview`**（read専用）：生成前に、差込値・出典（LLMがどこから読み取ったか）・法定必須項目の充足状況を確認します。DBは変更しません。何度でも確認し直せます。
-2. **`document.generate_draft`**：テンプレートから労働条件通知書のドラフトを生成し、GCS/MinIOへcontent-addressable（SHA-256キー）に保存します。`content_status`は`draft`になります。
+1. **`document_preview`**（read専用）：生成前に、差込値・出典（LLMがどこから読み取ったか）・法定必須項目の充足状況を確認します。DBは変更しません。何度でも確認し直せます。
+2. **`document_generate_draft`**：テンプレートから労働条件通知書のドラフトを生成し、GCS/MinIOへcontent-addressable（SHA-256キー）に保存します。`content_status`は`draft`になります。
    - `idempotencyKey`・`reason`が必須です。**同一`idempotencyKey`で再実行しても新しいdraftは作られず、既存のものが返ります**（リトライで文書が増殖する事故を防ぐための冪等性実装）
-3. **`document.request_approval`**：承認依頼を作成します。承認対象文書のハッシュ・nonce（一意な使い捨て値）・期限を紐づけます。戻り値の`ui://approval/{approvalRequestId}`が承認画面へのリンクです。
+3. **`document_request_approval`**：承認依頼を作成します。承認対象文書のハッシュ・nonce（一意な使い捨て値）・期限を紐づけます。戻り値の`ui://approval/{approvalRequestId}`が承認画面へのリンクです。
 4. **承認画面（MCP App）を開いて確認する**：詳細は[7章](#7-承認画面mcp-appの見方と使い方)。
-5. **`document.approve`**（`approver`または`admin`のみ）：承認または差戻し。承認者はトークンのprincipalから自動導出され、入力で「誰が承認したか」を指定することはできません（なりすまし防止）。
+5. **`document_approve`**（`approver`または`admin`のみ）：承認または差戻し。承認者はトークンのprincipalから自動導出され、入力で「誰が承認したか」を指定することはできません（なりすまし防止）。
    - `ambiguous`／`expert_review_required`のfindingsが1件でも残っていると、サーバー側で承認が**強制的にブロック**されます（差戻しは可能）
    - 承認依頼作成後に対象文書のハッシュが1バイトでも変わっていた場合、承認は自動的に無効化（`decision=rejected`, `decisionReason=artifact_hash_mismatch`）されます
    - `expiresAt`を過ぎた承認依頼は承認できず、自動的に`expired`になります
-6. **`document.attach_executed_copy`**：署名済み正本（紙のスキャンや電子署名済みPDF）をbase64で添付し、SHA-256を記録します。`execution_status`が`executed`になります。ファイルサイズはbase64で約15MB相当（decoded後）が上限です。
-7. **`document.record_delivery`**：交付方法（メール・Slack・対面等）・日時・電子交付同意・メッセージIDを記録します。`deliveryStatus`は`queued`→`sent`→`delivered`（または`failed`）と遷移させます。外部送信を伴うため、必ず`document.preview`等で内容を確認した後に呼んでください。
+6. **`document_attach_executed_copy`**：署名済み正本（紙のスキャンや電子署名済みPDF）をbase64で添付し、SHA-256を記録します。`execution_status`が`executed`になります。ファイルサイズはbase64で約15MB相当（decoded後）が上限です。
+7. **`document_record_delivery`**：交付方法（メール・Slack・対面等）・日時・電子交付同意・メッセージIDを記録します。`deliveryStatus`は`queued`→`sent`→`delivered`（または`failed`）と遷移させます。外部送信を伴うため、必ず`document_preview`等で内容を確認した後に呼んでください。
 
 ---
 
@@ -223,10 +223,10 @@ sequenceDiagram
 
 ### 手順
 
-1. **`dispatch_assignment.confirm`**：派遣就業を確定し、同時にA4派遣元管理台帳（`dispatch_ledger_entries`）へ自動記帳します（`job_order.confirm`と同じ発想）。`requester`または`admin`のみ呼べます。
+1. **`dispatch_assignment_confirm`**：派遣就業を確定し、同時にA4派遣元管理台帳（`dispatch_ledger_entries`）へ自動記帳します（`job_order_confirm`と同じ発想）。`requester`または`admin`のみ呼べます。
    - 必須：`idempotencyKey`・`reason`・`worker`（氏名・住所・国籍等）・`client`（派遣先事業所名・所在地・代表者）・`assignment`（契約期間・就業場所・抵触日等）・`ledgerEntry`（協定対象労働者か否か・無期雇用か否か・社会保険加入状況等）
    - 出力：`dispatchAssignmentId`（以降、[6章](#6-ワークフロー労働条件通知書の作成交付)の`dispatchAssignmentId`と同じ位置で使う`subjectId`になります）
-2. **`document.preview` / `document.generate_draft`**：`docType`に`dispatch_individual_contract`（A2）・`dispatch_working_conditions_notice`（A3）・`dispatch_worker_notice`（A10）のいずれかを指定します。`subjectId`には手順1の`dispatchAssignmentId`を渡します。以降は[6章](#6-ワークフロー労働条件通知書の作成交付)の手順3〜7（`request_approval`→`approve`→`attach_executed_copy`→`record_delivery`）と完全に同じです
+2. **`document_preview` / `document_generate_draft`**：`docType`に`dispatch_individual_contract`（A2）・`dispatch_working_conditions_notice`（A3）・`dispatch_worker_notice`（A10）のいずれかを指定します。`subjectId`には手順1の`dispatchAssignmentId`を渡します。以降は[6章](#6-ワークフロー労働条件通知書の作成交付)の手順3〜7（`request_approval`→`approve`→`attach_executed_copy`→`record_delivery`）と完全に同じです
 3. **1件の派遣就業につき、A2/A3/A10の3文書すべてで手順2を繰り返す必要があります**（`docType`を変えて別々に`generate_draft`・承認・交付を行う。1つの`dispatchAssignmentId`から3つの独立した`documentId`が作られます）
 
 **注意**：A2/A3/A10のテンプレートは既存様式の転記であり、**社労士による法的レビューは未実施**です（[`docs/registry-readiness-checklist.md`](registry-readiness-checklist.md)B節参照）。生成された文書は「社内検証用ドラフト・対外提出前に人が最終確認」の前提で扱ってください。
@@ -235,25 +235,25 @@ sequenceDiagram
 
 ## 7. 承認画面（MCP App）の見方と使い方 / How to read and use the approval screen / Cara membaca dan menggunakan layar persetujuan
 
-`document.request_approval`が返す`ui://approval/{approvalRequestId}`リンクを開くと、sandboxed iframe内に以下が1画面で表示されます。
+`document_request_approval`が返す`ui://approval/{approvalRequestId}`リンクを開くと、sandboxed iframe内に以下が1画面で表示されます。
 
 | セクション | 表示内容 |
 |---|---|
 | ヘッダー情報 | document_id・version・doc_type・content_status・approval_request_id・nonce・required_role・requested_by・requested_at・expires_at・artifact_sha256 |
 | 生成文書プレビュー | 労働条件通知書の実際の本文テキスト |
-| 前版との差分 | 訂正版（`document.supersede`後）の場合、旧版とのdiff（追加行は緑・削除行は赤） |
+| 前版との差分 | 訂正版（`document_supersede`後）の場合、旧版とのdiff（追加行は緑・削除行は赤） |
 | 法定必須項目の充足状況・矛盾・信頼度 | findingsテーブル（severity・rule・result・message・missing fields） |
 | 出典 | 各値がどこから来たか（`source_locator`へのリンク） |
 | 承認後に起こる処理 | 承認したら次に何が起きるか（`nextActions`） |
 | 操作 | 判断理由の入力欄＋「承認」「差戻し」ボタン |
 
-**画面に表示されるが操作できないもの**：訂正（`document.supersede`）と署名済みコピー添付（`document.attach_executed_copy`）は、この画面からは実行できません（案内表示のみ）。別途エージェントに依頼してください。これは業務データをクライアント側に保持しない設計上の意図的な制約です。
+**画面に表示されるが操作できないもの**：訂正（`document_supersede`）と署名済みコピー添付（`document_attach_executed_copy`）は、この画面からは実行できません（案内表示のみ）。別途エージェントに依頼してください。これは業務データをクライアント側に保持しない設計上の意図的な制約です。
 
 **承認ボタンを押すと何が起きるか**：
 
 1. 判断理由（`decisionReason`）を必ず入力する必要があります（未入力だとアラートが出ます）
 2. blockingなfindingsが残っている場合、承認ボタンは無効化されます（差戻しは可能）
-3. ボタンクリックで`document.approve`ツールが呼ばれます。呼び出し方法はMCPクライアントの対応状況により自動的に切り替わります：
+3. ボタンクリックで`document_approve`ツールが呼ばれます。呼び出し方法はMCPクライアントの対応状況により自動的に切り替わります：
    - `window.openai.callTool`対応クライアント（OpenAI Apps SDK方式）
    - `postMessage`対応クライアント（mcp-ui方式）
    - どちらも未対応の場合、手動実行用のJSONが画面に表示されるので、それをチャットにコピー＆ペーストしてエージェントに実行してもらってください
@@ -264,9 +264,9 @@ sequenceDiagram
 
 承認済み文書に誤りが見つかった場合、**既存のdocument行を直接書き換えることは絶対にできません**（改ざん防止のため、旧版はそのまま保持されます）。
 
-1. `document.supersede`（`requester`・`approver`・`admin`いずれも可）を、`documentId`・`reason`（訂正理由、必須）・`correctedValues`（訂正後の差込値）で呼びます
+1. `document_supersede`（`requester`・`approver`・`admin`いずれも可）を、`documentId`・`reason`（訂正理由、必須）・`correctedValues`（訂正後の差込値）で呼びます
 2. 旧版は`content_status=superseded`になり、新版（version+1）が`draft`として発行されます
-3. 新版に対して[6章](#6-ワークフロー労働条件通知書の作成交付)の`document.request_approval`以降を再度実行します
+3. 新版に対して[6章](#6-ワークフロー労働条件通知書の作成交付)の`document_request_approval`以降を再度実行します
 
 `correct-document`プロンプトを使えば、この一連の流れをエージェントに任せられます。
 
@@ -274,15 +274,15 @@ sequenceDiagram
 
 ## 9. 法令判定（compliance.evaluate）の見方 / How to read compliance.evaluate results / Cara membaca hasil compliance.evaluate
 
-`compliance.evaluate`・`document.preview`・承認画面が返す`findings`は、**5値のいずれか1つ**を持ちます。LLMはこの判定に一切関与しません（決定論的ルールエンジンのみ）。
+`compliance_evaluate`・`document_preview`・承認画面が返す`findings`は、**5値のいずれか1つ**を持ちます。LLMはこの判定に一切関与しません（決定論的ルールエンジンのみ）。
 
 | result | 意味 | 承認への影響 |
 |---|---|---|
 | `pass` | 法定要件を満たしている | ブロックしない |
-| `fail` | 明確に要件を満たしていない | ブロックしない（`document.approve`は通るが、業務上は放置しないこと） |
+| `fail` | 明確に要件を満たしていない | ブロックしない（`document_approve`は通るが、業務上は放置しないこと） |
 | `incomplete` | 必要な情報が不足している | ブロックしない（`missingFields`を確認して補完する） |
-| `ambiguous` | 判定に必要な条件が曖昧・複数解釈が可能 | **`document.approve`を強制ブロック** |
-| `expert_review_required` | 社労士・弁護士等の専門家判断が必要 | **`document.approve`を強制ブロック** |
+| `ambiguous` | 判定に必要な条件が曖昧・複数解釈が可能 | **`document_approve`を強制ブロック** |
+| `expert_review_required` | 社労士・弁護士等の専門家判断が必要 | **`document_approve`を強制ブロック** |
 
 **重要な設計原則**：`ambiguous`・`expert_review_required`を`pass`へ勝手に書き換えるコードパスは存在しません（`assertNoBlockingFindings`が唯一のゲート）。この2つのfindingsが残っている限り、AIエージェントにどう指示しても承認は通りません。**専門家に相談し、findingを解消してから再度評価してください。**
 
@@ -308,12 +308,12 @@ sequenceDiagram
 |---|---|---|
 | `401 unauthorized` | Bearerトークンが`.env`の`AUTH_LOCAL_TOKEN`と不一致 | mcp.jsonの`Authorization`ヘッダーを確認する |
 | `権限不足です（必要role: ...）` | あなたのroleでは呼べないツールを呼んだ（本番OAuth接続時） | 該当roleを持つ担当者に依頼する。ローカル`local_fixed_token`環境では全員`admin`なので発生しない |
-| `Invalid content_status transition` | すでに別の状態に遷移済みの文書に対して操作した（例：承認済み文書を再度request_approval） | 対象の現在状態を`document.preview`や監査ログで確認する |
-| 承認が`decisionReason=artifact_hash_mismatch`で自動的にrejectされた | 承認依頼作成後に対象文書のバイト列が変わった（バグ・競合更新） | 新たに`document.request_approval`を作り直す。原因調査は監査ログの`afterHash`列で追う |
-| 承認依頼が`expired`になっている | `expiresAt`を過ぎた | 新たに`document.request_approval`を作り直す |
+| `Invalid content_status transition` | すでに別の状態に遷移済みの文書に対して操作した（例：承認済み文書を再度request_approval） | 対象の現在状態を`document_preview`や監査ログで確認する |
+| 承認が`decisionReason=artifact_hash_mismatch`で自動的にrejectされた | 承認依頼作成後に対象文書のバイト列が変わった（バグ・競合更新） | 新たに`document_request_approval`を作り直す。原因調査は監査ログの`afterHash`列で追う |
+| 承認依頼が`expired`になっている | `expiresAt`を過ぎた | 新たに`document_request_approval`を作り直す |
 | 承認ボタンが押せない（無効化されている） | blockingなfindings（`ambiguous`／`expert_review_required`）が残っている | 専門家に相談しfindingを解消する。差戻しは可能 |
 | `413 payload_too_large` | リクエストボディまたは`executedBytesBase64`が上限超過（既定20MB／約15MB相当） | ファイルを圧縮する、または分割を検討する |
-| 同じdraftが複数できたように見える | `idempotencyKey`を毎回変えて`document.generate_draft`を呼んでいる | 同一操作の再実行では同じ`idempotencyKey`を使う（新規操作なら新しいキーを使う） |
+| 同じdraftが複数できたように見える | `idempotencyKey`を毎回変えて`document_generate_draft`を呼んでいる | 同一操作の再実行では同じ`idempotencyKey`を使う（新規操作なら新しいキーを使う） |
 
 ---
 
@@ -321,7 +321,7 @@ sequenceDiagram
 
 - Bearerトークンをチャット・チケット・Slackの平文メッセージに貼らない
 - 在留カード・パスポート等の画像をAssen経由でアップロード・保存しようとしない（Assenのスコープ外。OCR処理後は即破棄が原則）
-- `document.approve`の`decisionReason`に個人情報の詳細を書きすぎない（監査ログに永続保存されるため）
+- `document_approve`の`decisionReason`に個人情報の詳細を書きすぎない（監査ログに永続保存されるため）
 - 承認者以外が「承認者になりすます」ためにトークンを共有しない（`approved_by`はトークンから自動導出されるため、共有は事実上のなりすまし）
 - `ambiguous`／`expert_review_required`のfindingsを消すためにルール定義（`legal_rules`）を勝手に書き換えない（法的意見書のレビューを経ずに判定基準を変えることは重大リスク）
 

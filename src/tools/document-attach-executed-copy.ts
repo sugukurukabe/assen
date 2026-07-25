@@ -30,7 +30,7 @@ const inputSchema = {
 
 export function registerDocumentAttachExecutedCopy(server: McpServer, context: ServiceContext): void {
   server.registerTool(
-    "document.attach_executed_copy",
+    "document_attach_executed_copy",
     {
       title: "署名済み正本を添付する",
       description:

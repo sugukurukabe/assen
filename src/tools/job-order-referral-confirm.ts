@@ -42,7 +42,7 @@ const inputSchema = {
 
 export function registerJobOrderReferralConfirm(server: McpServer, context: ServiceContext): void {
   server.registerTool(
-    "job_order_referral.confirm",
+    "job_order_referral_confirm",
     {
       title: "求人と求職者の紹介行を確定し紹介欄へ記帳する",
       description:

@@ -43,7 +43,7 @@ const inputSchema = {
 
 export function registerJobSeekerConfirm(server: McpServer, context: ServiceContext): void {
   server.registerTool(
-    "job_seeker.confirm",
+    "job_seeker_confirm",
     {
       title: "求職者を確定し求職管理簿へ記帳する",
       description:

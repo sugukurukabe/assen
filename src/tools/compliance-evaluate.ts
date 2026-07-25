@@ -31,7 +31,7 @@ const inputSchema = {
 
 export function registerComplianceEvaluate(server: McpServer, context: ServiceContext): void {
   server.registerTool(
-    "compliance.evaluate",
+    "compliance_evaluate",
     {
       title: "法令遵守状況を判定する",
       description:

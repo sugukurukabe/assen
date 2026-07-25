@@ -65,7 +65,7 @@ export async function requestDocumentApproval(db: Db, input: RequestApprovalInpu
       subjectType: document.subjectType,
       subjectId: document.subjectId,
       subjectVersion: document.version,
-      requestedAction: "document.approve",
+      requestedAction: "document_approve",
       artifactSha256: document.generatedSha256,
       proposedDiff: input.proposedDiff,
       requiredRole: input.requiredRole,

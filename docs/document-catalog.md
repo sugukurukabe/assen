@@ -24,7 +24,7 @@ Dokumen ini mengimpor apa adanya tabel katalog dokumen dari draf desain v0 (draf
 | ⑨ | 不採用理由の書面明示 | 派遣元→労働者 | 実務フローv1準拠 | M2 Phase 2で実装済み（⑧回答受領後のみ生成） | `t2p_non_hire_reason_notice` |
 | ⑩ | 直接雇用切替同意書 | 派遣元⇔労働者 | v0設計書のみに記載（実務フローv1本文には直接の記述なし。B節の法的意見書取得時に要再確認） | **スコープ外**（※注記3参照） | ― |
 
-M1では④〜⑩のいずれも未実装（M1は`labor_conditions_notice`のみ）。M2 Phase 1では④〜⑩は対象外だった。M2 Phase 2（本フェーズ）で④〜⑨の生成基盤（`job_seeker.confirm`／`job_order_referral.confirm`／`placement.confirm`／`placement.record_rejection_reason`の4新規ツール＋各docType）を実装した。
+M1では④〜⑩のいずれも未実装（M1は`labor_conditions_notice`のみ）。M2 Phase 1では④〜⑩は対象外だった。M2 Phase 2（本フェーズ）で④〜⑨の生成基盤（`job_seeker_confirm`／`job_order_referral_confirm`／`placement_confirm`／`placement_record_rejection_reason`の4新規ツール＋各docType）を実装した。
 
 **注記1（⑤の名称不一致・A10と同様のパターン）**：カタログはv0ドラフトの表記に従い「本人同意書」と呼ぶが、変換元テンプレート（`⑤本人同意書_日英併記_v1.docx`、`~/Downloads/`配下・社外・未レビュー）の実タイトルは「紹介予定派遣に関する説明書 兼 本人同意書」であり、単なる同意書ではなく説明書を兼ねる。A10（派遣先通知／派遣労働者通知書）と同じ理由（根拠となる実務が一致するため同一書類として扱う）により、`doc-type-registry.ts`の`docTypeLabel`は実タイトルに揃えている。
 

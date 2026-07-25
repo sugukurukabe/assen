@@ -38,7 +38,7 @@ const inputSchema = {
 
 export function registerInquiryPromote(server: McpServer, context: ServiceContext): void {
   server.registerTool(
-    "inquiry.promote",
+    "inquiry_promote",
     {
       title: "問い合わせを候補者へ昇格する",
       description:

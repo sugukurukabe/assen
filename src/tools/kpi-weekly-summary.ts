@@ -24,7 +24,7 @@ const inputSchema = {
 
 export function registerKpiWeeklySummary(server: McpServer, context: ServiceContext): void {
   server.registerTool(
-    "kpi.weekly_summary",
+    "kpi_weekly_summary",
     {
       title: "週次5指標を集計する",
       description:

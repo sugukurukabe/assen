@@ -38,7 +38,7 @@ const inputSchema = {
 
 export function registerJobOrderScore(server: McpServer, context: ServiceContext): void {
   server.registerTool(
-    "job_order.score",
+    "job_order_score",
     {
       title: "決めやすい案件スコアを付ける",
       description:

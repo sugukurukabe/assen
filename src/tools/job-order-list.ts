@@ -22,7 +22,7 @@ const inputSchema = {
 
 export function registerJobOrderList(server: McpServer, context: ServiceContext): void {
   server.registerTool(
-    "job_order.list",
+    "job_order_list",
     {
       title: "求人リストを照会する",
       description:

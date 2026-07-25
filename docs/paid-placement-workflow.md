@@ -13,39 +13,39 @@ OAuth sekali klik adalah prosedur standar: tambahkan URL `/mcp` Assen ke Claude 
 
 | パターン | 流れ | Assenツール |
 |---|---|---|
-| P1 純紹介×Zキャリア | inquiry → job_order(score) → referral → placement | `inquiry.*` → `job_order.score` → `job_order_referral.confirm` → `placement.confirm` |
-| P2 純紹介×直接求人（建設監督） | job_order + G1 → inquiry → referral → placement | `job_order.gate_check`（監督職必須）→ 同上 |
-| P3 紹介予定派遣（T2P） | job_order(t2p) → dispatch → placement(T2P成立) | 既存T2P書類④〜⑨＋`placement.confirm` |
-| P4 派遣→純紹介切替 | inquiry(channel=internal_conversion) → placement | `inquiry.record`経路「社内転換」 |
+| P1 純紹介×Zキャリア | inquiry → job_order(score) → referral → placement | `inquiry.*` → `job_order_score` → `job_order_referral_confirm` → `placement_confirm` |
+| P2 純紹介×直接求人（建設監督） | job_order + G1 → inquiry → referral → placement | `job_order_gate_check`（監督職必須）→ 同上 |
+| P3 紹介予定派遣（T2P） | job_order(t2p) → dispatch → placement(T2P成立) | 既存T2P書類④〜⑨＋`placement_confirm` |
+| P4 派遣→純紹介切替 | inquiry(channel=internal_conversion) → placement | `inquiry_record`経路「社内転換」 |
 
 ## 職安法6関所 / ESA gates G1–G6 / Gerbang ESA
 
 | 関所 | Assenでの実装 |
 |---|---|
-| G1 受理チェック | `job_order.gate_check`（実作業ベース。肩書だけでは通さない）＋`legal/rules/esa-gates.v1.json` |
-| G2 ④交付 | `compliance.evaluate`(job_order_referral) がdeliveryStatusを検査 |
+| G1 受理チェック | `job_order_gate_check`（実作業ベース。肩書だけでは通さない）＋`legal/rules/esa-gates.v1.json` |
+| G2 ④交付 | `compliance_evaluate`(job_order_referral) がdeliveryStatusを検査 |
 | G3 ⑤同意 | 同上（approved/executed） |
-| G4 帳簿三点 | `job_order.confirm` / `inquiry.promote`→`job_seekers` / `placement.confirm`→`fee_records` |
+| G4 帳簿三点 | `job_order_confirm` / `inquiry_promote`→`job_seekers` / `placement_confirm`→`fee_records` |
 | G5 手数料 | 成立後のみ記帳・`noPoachingUntil`（採用+2年） |
-| G6 的確表示 | `job_order.gate_check`の`adCopy`または`checkAccurateRepresentation` |
+| G6 的確表示 | `job_order_gate_check`の`adCopy`または`checkAccurateRepresentation` |
 
 ## 2段階インテーク / Two-stage intake / Intake 2 tahap
 
-1. `inquiry.record` — Stage 0（DM5問。パイプラインには載せない）
-2. `inquiry.update` — 正式申込セット送付・書類受領。3日無応答で自動クローズ
-3. `inquiry.promote` — セット完備時のみ帳簿②へ昇格（**WF-15A起票条件の正本**）
+1. `inquiry_record` — Stage 0（DM5問。パイプラインには載せない）
+2. `inquiry_update` — 正式申込セット送付・書類受領。3日無応答で自動クローズ
+3. `inquiry_promote` — セット完備時のみ帳簿②へ昇格（**WF-15A起票条件の正本**）
 
 ## オシン日次・週次 / Oshin daily & weekly / Harian & mingguan Oshin
 
 | タイミング | プロンプト | 主なツール |
 |---|---|---|
-| 09:00 朝スキャン | `morning-scan` | `job_order.gate_check` / `job_order.score` / `job_order.list` |
-| 候補者突合（72h） | `match-candidates` | `job_order.list` + referral確認 |
-| 月曜30分 | `weekly-review` | `kpi.weekly_summary`（任意でSlack投稿） |
+| 09:00 朝スキャン | `morning-scan` | `job_order_gate_check` / `job_order_score` / `job_order_list` |
+| 候補者突合（72h） | `match-candidates` | `job_order_list` + referral確認 |
+| 月曜30分 | `weekly-review` | `kpi_weekly_summary`（任意でSlack投稿） |
 
 ## WF-25H 相当（成約4点同時） / Placement 4-point fire
 
-`placement.confirm`(outcome=hired) が1トランザクションで:
+`placement_confirm`(outcome=hired) が1トランザクションで:
 
 1. 帳簿③ `fee_records` 記帳
 2. 手数料請求ドラフト（`feeInvoiceDraft`）

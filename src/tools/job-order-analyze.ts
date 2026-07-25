@@ -23,7 +23,7 @@ const inputSchema = {
 
 export function registerJobOrderAnalyze(server: McpServer, context: ServiceContext): void {
   server.registerTool(
-    "job_order.analyze",
+    "job_order_analyze",
     {
       title: "求人メールを解析する",
       description:

@@ -25,8 +25,8 @@ README ini adalah panduan implementasi dengan dokumen desain (`法定書類自�
 - **Transport**: Streamable HTTP（`/mcp`）。セッションを発行しないstateless構成（§2.4） — 業務状態はすべてPostgresに保持し、リクエストごとに使い捨てのMcpServer/transportを生成する
 - **DB**: PostgreSQL 16。Row-Level Securityで`app.tenant_id`によるテナント分離を全クエリに強制する設計（`acquireTenantScopedDb`がリクエストごとにDBコネクションへ設定）。ランタイム接続（`DATABASE_URL`）は非superuser・RLSバイパスなしの`assen_app`ロールを使用し、マイグレーション/GRANT専用の`MIGRATION_DATABASE_URL`（superuser相当、既定ロール`assen`）とは分離済み。テストスイート・CI共に`assen_app`で実行し、RLSが実際に有効であることを確認済み（詳細は[`docs/registry-readiness-checklist.md`](docs/registry-readiness-checklist.md)のD節参照）
 - **Storage**: S3互換オブジェクトストレージ（ローカルはMinIO、本番はGCS）。生成文書はSHA-256をキーにcontent-addressableに保存し、改変を検知可能にする
-- **Audit**: 全ての状態変更を`audit_events`にハッシュチェーンで記録（tamper-evident）。`document.approve`は承認対象PDFのハッシュが1バイトでも変われば自動的にvoidする
-- **MCP App**: `ui://approval/{approvalRequestId}`リソースがsandboxed iframe向けの承認画面HTMLを返す。書込は必ず`document.approve`ツール経由（UIはトリガーのみで業務データをクライアント側に保持しない）
+- **Audit**: 全ての状態変更を`audit_events`にハッシュチェーンで記録（tamper-evident）。`document_approve`は承認対象PDFのハッシュが1バイトでも変われば自動的にvoidする
+- **MCP App**: `ui://approval/{approvalRequestId}`リソースがsandboxed iframe向けの承認画面HTMLを返す。書込は必ず`document_approve`ツール経由（UIはトリガーのみで業務データをクライアント側に保持しない）
 
 ```
 src/
@@ -107,16 +107,16 @@ npm run audit:verify           # audit_eventsのハッシュチェーン検証CL
 
 | Tool | 用途 | readOnly | 破壊的 |
 |---|---|---|---|
-| `job_order.analyze` | 求人メール等からヒューリスティック抽出し、fact_assertionsとconfidence/矛盾を返す | no | no |
-| `job_order.confirm` | 人間確認済みの値で求人管理簿（帳簿①）を確定する | no | no |
-| `compliance.evaluate` | subjectに対する法定ルールを評価し、5値判定（pass/fail/incomplete/ambiguous/expert_review_required）のfindingsを返す | yes | no |
-| `document.preview` | 生成前に法定必須項目の充足状況をプレビューする | yes | no |
-| `document.generate_draft` | テンプレートから労働条件通知書ドラフトを生成し、content-addressableに保存する | no | no |
-| `document.request_approval` | 承認依頼（nonce・artifact hash・期限つき）を作成し、承認UIへのresource_linkを返す | no | no |
-| `document.approve` | 承認/差戻しの確定ゲート。hash不一致・期限切れは自動void、ambiguous/expert_review_requiredはブロック | no | yes |
-| `document.attach_executed_copy` | 署名済み正本を添付し、execution_statusをexecutedにする | no | no |
-| `document.record_delivery` | 交付結果（queued/sent/delivered/failed）を記録する | no | no |
-| `document.supersede` | 訂正版を発行し、旧版をsupersededにする | no | no |
+| `job_order_analyze` | 求人メール等からヒューリスティック抽出し、fact_assertionsとconfidence/矛盾を返す | no | no |
+| `job_order_confirm` | 人間確認済みの値で求人管理簿（帳簿①）を確定する | no | no |
+| `compliance_evaluate` | subjectに対する法定ルールを評価し、5値判定（pass/fail/incomplete/ambiguous/expert_review_required）のfindingsを返す | yes | no |
+| `document_preview` | 生成前に法定必須項目の充足状況をプレビューする | yes | no |
+| `document_generate_draft` | テンプレートから労働条件通知書ドラフトを生成し、content-addressableに保存する | no | no |
+| `document_request_approval` | 承認依頼（nonce・artifact hash・期限つき）を作成し、承認UIへのresource_linkを返す | no | no |
+| `document_approve` | 承認/差戻しの確定ゲート。hash不一致・期限切れは自動void、ambiguous/expert_review_requiredはブロック | no | yes |
+| `document_attach_executed_copy` | 署名済み正本を添付し、execution_statusをexecutedにする | no | no |
+| `document_record_delivery` | 交付結果（queued/sent/delivered/failed）を記録する | no | no |
+| `document_supersede` | 訂正版を発行し、旧版をsupersededにする | no | no |
 
 ## MCP Resources
 
@@ -144,15 +144,15 @@ npm run audit:verify           # audit_eventsのハッシュチェーン検証CL
 
 - 在留カード・パスポート等の画像はOCR処理後即座に破棄し、サーバーに保存しない
 - PIIはアプリケーション層でAES-256-GCM暗号化（`PII_ENCRYPTION_KEY`はローカル開発専用の値。本番はKMSに置き換える）
-- 生成される文書はドラフトであり、`document.approve`による人間の承認を経るまで法的に確定しない
+- 生成される文書はドラフトであり、`document_approve`による人間の承認を経るまで法的に確定しない
 - 許可番号（有料職業紹介 46-ユ-000000／労働者派遣 派46-000000）は`tenant_settings`を唯一の参照元とする
 
 ## 本番運用ハードニング / Production hardening / Hardening produksi
 
 M1完了後、コードレベルの本番運用ハードニングを実施しました。対応済み項目:
 
-- `document.generate_draft`にtransactional outboxベースの冪等性を実装（同一`idempotencyKey`の再実行で重複draftを作らない）
-- 全write tool（`document.generate_draft`／`request_approval`／`attach_executed_copy`／`record_delivery`／`supersede`）に`assertScope`認可チェックを追加（`document.approve`／`job_order.confirm`は元々対応済み）
+- `document_generate_draft`にtransactional outboxベースの冪等性を実装（同一`idempotencyKey`の再実行で重複draftを作らない）
+- 全write tool（`document_generate_draft`／`request_approval`／`attach_executed_copy`／`record_delivery`／`supersede`）に`assertScope`認可チェックを追加（`document_approve`／`job_order_confirm`は元々対応済み）
 - HTTPリクエストボディに`MAX_REQUEST_BODY_BYTES`（既定20MB）の上限を追加し、超過時は413を返す。DBコネクション取得より前にチェックすることでpool枯渇を防ぐ
 - `executedBytesBase64`にも上限（約15MB相当）を追加
 - `PII_ENCRYPTION_KEY`を起動時に32byte(base64)であることを検証。`NODE_ENV=production`では`AUTH_MODE=oauth`必須・`PII_ENCRYPTION_KEY`必須の起動ガードを追加（`assertProductionSafety`）
@@ -239,19 +239,19 @@ M2依存の意思決定（外部連携handlerの内容）とは独立に進め�
 
 ### M2 Phase 2：T2P書類④〜⑨＋採否理由チェーン（第9ラウンド） / M2 Phase 2: T2P documents ④-⑨ and the non-hire-reason chain: pass 9 / M2 Phase 2: dokumen T2P ④-⑨ dan rantai alasan tidak diterima: ronde 9
 
-紹介予定派遣（T2P）の書類④〜⑨と、その生成に必須前提となる「採否理由チェーン」（`placement.confirm`）を実装しました。実務フローv1（社外・未レビュー、`~/Downloads/紹介予定派遣_実務フロー_v1.md.docx`）の調査により、④⑤⑦⑧⑨の被評価主体（subject）を新規テーブル`job_order_referrals`とし、⑥はA2と同じ`dispatch_assignments`（`t2pFlag`）を再利用する構成に確定しました。
+紹介予定派遣（T2P）の書類④〜⑨と、その生成に必須前提となる「採否理由チェーン」（`placement_confirm`）を実装しました。実務フローv1（社外・未レビュー、`~/Downloads/紹介予定派遣_実務フロー_v1.md.docx`）の調査により、④⑤⑦⑧⑨の被評価主体（subject）を新規テーブル`job_order_referrals`とし、⑥はA2と同じ`dispatch_assignments`（`t2pFlag`）を再利用する構成に確定しました。
 
 - **新規テーブル列・enum値**：`job_order_referrals`へ`conditionsTyped`（JSONB、④⑤⑦書類の差込用superset）・`rejectionReason`・`rejectionReasonReceivedAt`列を追加し、`jobSeekerId`を`text`から`uuid` + FK（`job_seekers.id`）へ修正。`party_snapshots.taken_reason` enumへ`job_seeker_accept`を追加
 - **新規ドメインschema**：`src/domain/t2p-referral-conditions.ts`（superset）と、④⑤⑥⑦⑧⑨各docType用の個別schema（`t2p-job-order-notice.ts`等）。⑥は既存`dispatch-conditions.ts`の`referralFeeRate`を必須化して再利用し、T2P特有の固定条項（6ヶ月上限・試用期間なし等）はテンプレート側の法定文言として直接記載する方式にした
 - **テンプレート・mapping**：④〜⑨の6テンプレート（`legal/templates/t2p-*.v1.txt`）・6mapping（`legal/mapping/t2p-*.json`）を、`~/Downloads`配下の社外・未レビューDOCXから変換して新規作成。法的レビュー未実施（詳細は[`docs/document-catalog.md`](docs/document-catalog.md)参照）
-- **生成パイプラインの一般化**：`doc-type-registry.ts`の`subjectType`を`"dispatch_assignment" | "job_order_referral"`のunion型へ拡張。`generate-draft.ts`/`preview.ts`のハードコードされた`dispatchAssignments`直参照を`subject-lookup.ts`（`loadSubjectRow`）経由の分岐に切り替え、入力フィールド`dispatchAssignmentId`を`subjectId`へ一般化（`document.generate_draft`/`document.preview`ツールのinputSchemaも追随）。`subject-values.ts`（新規）が`conditionsTyped`（JSONB）とtyped column（⑨の`rejectionReason`）を描画直前にマージする
+- **生成パイプラインの一般化**：`doc-type-registry.ts`の`subjectType`を`"dispatch_assignment" | "job_order_referral"`のunion型へ拡張。`generate-draft.ts`/`preview.ts`のハードコードされた`dispatchAssignments`直参照を`subject-lookup.ts`（`loadSubjectRow`）経由の分岐に切り替え、入力フィールド`dispatchAssignmentId`を`subjectId`へ一般化（`document_generate_draft`/`document_preview`ツールのinputSchemaも追随）。`subject-values.ts`（新規）が`conditionsTyped`（JSONB）とtyped column（⑨の`rejectionReason`）を描画直前にマージする
 - **新規ツール4件**：
-  - `job_seeker.confirm`：求職者を確定し帳簿②へposting。氏名・住所・生年月日は`pii-crypto.ts`（既存・M1では未接続だった）でアプリ層暗号化してから保存
-  - `job_order_referral.confirm`：確定済みの求人・求職者を紐付け、紹介行（帳簿①②の接点）を作成
-  - `placement.confirm`：紹介行の採否（hired/rejected）を確定。hired時は転職勧奨禁止期間（採用日+2年）を自動計算し、party snapshotを作成、帳簿③（`fee_records`）へposting。rejected時は⑧書類生成に必要な項目を記録
-  - `placement.record_rejection_reason`：派遣先からの回答受領後、不採用理由をtyped columnへ記録し⑨生成の前提を整える
-- **`compliance.evaluate`のjob_order_referral対応**：`SUPPORTED_SUBJECT_TYPES`へ`job_order_referral`を追加し、`subject-lookup.ts`の`loadSubjectRow`にも同分岐を追加（`document.approve`・承認UIが利用する共通ヘルパー）
-- **統合テスト**：`test/m2-phase2-t2p-documents.test.ts`にF1〜F6の縦切りシナリオ（`job_order.confirm`→`job_seeker.confirm`→`job_order_referral.confirm`→④⑤生成→`dispatch_assignment.confirm`(t2pFlag)→⑥生成→hiredルート（`placement.confirm`→⑦生成＋`fee_records`検証）／rejectedルート（`placement.confirm`→⑧生成→`placement.record_rejection_reason`→⑨生成））を新規追加。既存の全テストスイート（golden-prompts含む）が通過することを確認済み
+  - `job_seeker_confirm`：求職者を確定し帳簿②へposting。氏名・住所・生年月日は`pii-crypto.ts`（既存・M1では未接続だった）でアプリ層暗号化してから保存
+  - `job_order_referral_confirm`：確定済みの求人・求職者を紐付け、紹介行（帳簿①②の接点）を作成
+  - `placement_confirm`：紹介行の採否（hired/rejected）を確定。hired時は転職勧奨禁止期間（採用日+2年）を自動計算し、party snapshotを作成、帳簿③（`fee_records`）へposting。rejected時は⑧書類生成に必要な項目を記録
+  - `placement_record_rejection_reason`：派遣先からの回答受領後、不採用理由をtyped columnへ記録し⑨生成の前提を整える
+- **`compliance_evaluate`のjob_order_referral対応**：`SUPPORTED_SUBJECT_TYPES`へ`job_order_referral`を追加し、`subject-lookup.ts`の`loadSubjectRow`にも同分岐を追加（`document_approve`・承認UIが利用する共通ヘルパー）
+- **統合テスト**：`test/m2-phase2-t2p-documents.test.ts`にF1〜F6の縦切りシナリオ（`job_order_confirm`→`job_seeker_confirm`→`job_order_referral_confirm`→④⑤生成→`dispatch_assignment_confirm`(t2pFlag)→⑥生成→hiredルート（`placement_confirm`→⑦生成＋`fee_records`検証）／rejectedルート（`placement_confirm`→⑧生成→`placement_record_rejection_reason`→⑨生成））を新規追加。既存の全テストスイート（golden-prompts含む）が通過することを確認済み
 - **golden promptハーネスの更新**：新規4ツール分のフィクスチャ（直接・間接・否定形、計12件）とキーワードを追加。フィクスチャ総数29→44件、対象ツール10→14件
 
 ⑩「直接雇用切替同意書」はv0ドラフトのみに記載があり、実務フローv1本文に記述がなく対応するテンプレートも見つからなかったため、今回はスコープ外とし[`docs/document-catalog.md`](docs/document-catalog.md)に注記のみ行いました（壁承認済み）。

@@ -33,7 +33,7 @@ const inputSchema = {
 
 export function registerInquiryRecord(server: McpServer, context: ServiceContext): void {
   server.registerTool(
-    "inquiry.record",
+    "inquiry_record",
     {
       title: "問い合わせ（Stage 0）を記録する",
       description:

@@ -85,7 +85,7 @@ const inputSchema = {
 
 export function registerDispatchAssignmentConfirm(server: McpServer, context: ServiceContext): void {
   server.registerTool(
-    "dispatch_assignment.confirm",
+    "dispatch_assignment_confirm",
     {
       title: "派遣就業を確定し派遣元管理台帳へ記帳する",
       description:

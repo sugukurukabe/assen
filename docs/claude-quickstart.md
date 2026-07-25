@@ -46,7 +46,7 @@ claude mcp add --transport http assen \
 
 > Assenで使えるツールを一覧して
 
-23個のツール（`inquiry.*`・`job_order.gate_check`/`score`/`list`・`kpi.weekly_summary`等を含む）が返れば接続成功です。有料紹介の使い方は[`docs/paid-placement-workflow.md`](paid-placement-workflow.md)を参照してください。
+23個のツール（`inquiry.*`・`job_order_gate_check`/`score`/`list`・`kpi_weekly_summary`等を含む）が返れば接続成功です。有料紹介の使い方は[`docs/paid-placement-workflow.md`](paid-placement-workflow.md)を参照してください。
 
 ---
 
@@ -62,9 +62,9 @@ Claudeがrefresh tokenで自動更新します。再ログイン画面が出た�
 
 > 求人メールを取り込んで。本文はこれです：（メール原文を貼る）
 
-エージェントが`job_order.analyze`→（欠落項目の確認）→`job_order.confirm`→`compliance.evaluate`の順に自動で進めます。各ステップで何が起きているかは[`docs/team-guide.md`](team-guide.md)5章・6章を参照してください。
+エージェントが`job_order_analyze`→（欠落項目の確認）→`job_order_confirm`→`compliance_evaluate`の順に自動で進めます。各ステップで何が起きているかは[`docs/team-guide.md`](team-guide.md)5章・6章を参照してください。
 
-**必ず守ること**：Assenが生成する文書は常にドラフトです。人間が`document.approve`で承認するまで法的に確定しません。`ambiguous`／`expert_review_required`のfindingsが出た場合は、AIに何を指示しても承認を通せません（意図的な設計）。専門家に相談してください（[`docs/team-guide.md`](team-guide.md)9章・12章参照）。
+**必ず守ること**：Assenが生成する文書は常にドラフトです。人間が`document_approve`で承認するまで法的に確定しません。`ambiguous`／`expert_review_required`のfindingsが出た場合は、AIに何を指示しても承認を通せません（意図的な設計）。専門家に相談してください（[`docs/team-guide.md`](team-guide.md)9章・12章参照）。
 
 ---
 

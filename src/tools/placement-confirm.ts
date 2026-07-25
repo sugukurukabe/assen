@@ -61,7 +61,7 @@ const inputSchema = {
 
 export function registerPlacementConfirm(server: McpServer, context: ServiceContext): void {
   server.registerTool(
-    "placement.confirm",
+    "placement_confirm",
     {
       title: "採否を確定し帳簿③へ記帳する",
       description:

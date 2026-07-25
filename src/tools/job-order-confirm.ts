@@ -47,7 +47,7 @@ const inputSchema = {
 
 export function registerJobOrderConfirm(server: McpServer, context: ServiceContext): void {
   server.registerTool(
-    "job_order.confirm",
+    "job_order_confirm",
     {
       title: "求人を帳簿①へ確定する",
       description:
