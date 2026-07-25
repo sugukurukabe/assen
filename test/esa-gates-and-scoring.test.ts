@@ -63,8 +63,10 @@ describe("computeJobOrderScore (§04)", () => {
       inexperiencedOk: true,
       hasDormitory: true,
       kyushuLocation: true,
+      laneFit: "mobile_shop",
+      wantsExperiencedWorker: true,
     });
-    expect(result.total).toBeGreaterThanOrEqual(8);
+    expect(result.total).toBeGreaterThanOrEqual(9);
     expect(result.grade).toBe("S");
     expect(result.routeToP2Lane).toBe(false);
   });

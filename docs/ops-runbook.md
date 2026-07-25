@@ -253,7 +253,7 @@ for SECRET in assen-database-url assen-storage-access-key assen-storage-secret-k
 done
 ```
 
-## 6. Cloud Run（初回作成。以降は[`compliance-deploy.yml`](../../../.github/workflows/compliance-deploy.yml)がrevision更新する） / Cloud Run (initial creation; subsequent revisions are updated by compliance-deploy.yml) / Cloud Run (pembuatan awal; revisi selanjutnya diperbarui oleh compliance-deploy.yml)
+## 6. Cloud Run（初回作成。以降は[`deploy.yml`](../.github/workflows/deploy.yml)がrevision更新する） / Cloud Run (initial creation; subsequent revisions are updated by deploy.yml) / Cloud Run (pembuatan awal; revisi selanjutnya diperbarui oleh deploy.yml)
 
 **実行済み（2026-07-24）**。当初想定との差分：
 
@@ -347,11 +347,11 @@ gcloud run deploy assen-runtime \
    gcloud run jobs execute assen-migrator \
      --project=REDACTED-GCP-PROJECT --region=asia-northeast1 --wait
    ```
-4. Claude Connectorで`https://assen-runtime-000000000000.asia-northeast1.run.app/mcp`を追加し、Google Workspaceログイン→`tools/list`が23本返ることを確認する。`TOKEN_EXCHANGE_ALLOWLIST_JSON`にないemailは従来どおり拒否される。
+4. Claude Connectorで`https://assen-runtime-000000000000.asia-northeast1.run.app/mcp`を追加し、Google Workspaceログイン→`tools/list`が25本返ることを確認する。`TOKEN_EXCHANGE_ALLOWLIST_JSON`にないemailは従来どおり拒否される。
 
 ### 6.3 outbox-worker（Cloud Run Worker Pool）
 
-`src/services/outbox-worker/run.ts`はHTTPポートを開かない常駐pollerのため、Cloud Run Servicesではなく**Worker Pools**（`gcloud run worker-pools deploy`）を使う（[`cloud-run-basics`スキル](file:///Users/kabe/.claude/skills/cloud-run-basics/SKILL.md)の分類に従う。ServicesはHTTPリクエスト応答用、Worker PoolsはPub/Sub pull等と同種の常駐pull型処理用）。SLACK関連は未設定のため`--set-secrets`から除外している（設定後は`gcloud run worker-pools deploy`を再実行して追加すること）：
+`src/services/outbox-worker/run.ts`はHTTPポートを開かない常駐pollerのため、Cloud Run Servicesではなく**Worker Pools**（`gcloud run worker-pools deploy`）を使う。Slack OS v7.2では`SLACK_KPI_CHANNEL_ID`（#15相当）・`SLACK_FINANCE_CHANNEL_ID`（#40相当）・`SLACK_BOARD_CHANNEL_ID`（#95相当）をGitHub variables / Worker Pool環境変数で管理する。`SLACK_BOT_TOKEN`のみSecret Managerから注入する：
 
 ```bash
 # grpc/cffiが必要（このマシンでは専用venvを用意した。6節冒頭の差分参照）
@@ -391,7 +391,15 @@ gcloud run worker-pools deploy assen-outbox-worker \
 
 ## 7. GitHub Actions側の設定 / GitHub Actions setup / Setelan sisi GitHub Actions
 
-[`.github/workflows/compliance-deploy.yml`](../../../.github/workflows/compliance-deploy.yml)は`environment: assen-internal`を`migrate`/`deploy-runtime`/`deploy-outbox-worker`ジョブに指定している。GitHub repo設定（Settings → Environments → New environment → `assen-internal`）でrequired reviewers（壁を含む）を設定することで、デプロイ前に人の承認を必須化する。未設定のままだとゲートなしでデプロイが進むため、**運用開始前に必ず設定すること（未実施）**。
+ [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml)は`environment: assen-internal`を`migrate`/`deploy-runtime`/`deploy-outbox-worker`ジョブに指定している。GitHub repo設定（Settings → Environments → New environment → `assen-internal`）でrequired reviewers（壁を含む）を設定することで、デプロイ前に人の承認を必須化する。未設定のままだとゲートなしでデプロイが進むため、**運用開始前に必ず設定すること**。
+
+### 6.5 Rollback / ロールバック / Rollback
+
+問題時はDB列・テーブルを削除せず、Cloud Run runtimeとWorker Poolを直前imageへ戻す。`deploy.yml`実行前に記録したruntime revision、worker revision、image SHAへ戻し、`0005/0006`は加算的migrationとして残す。migration適用前に失敗した場合はruntime/workerを更新しない。
+
+If a release fails, do not drop the new DB columns/tables. Roll the Cloud Run service and Worker Pool back to the previously recorded revisions/image SHA. Keep `0005/0006` in place as additive migrations. If migration fails before runtime deployment, do not update runtime/worker.
+
+Jika rilis gagal, jangan hapus kolom/tabel DB baru. Kembalikan Cloud Run service dan Worker Pool ke revision/image SHA sebelumnya. Biarkan `0005/0006` sebagai migrasi tambahan. Jika migrasi gagal sebelum deploy runtime, jangan update runtime/worker.
 
 ## 8. 残タスク（2026-07-24時点） / Remaining follow-ups / Tugas lanjutan
 

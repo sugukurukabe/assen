@@ -46,7 +46,7 @@ claude mcp add --transport http assen \
 
 > Assenで使えるツールを一覧して
 
-23個のツール（`inquiry.*`・`job_order_gate_check`/`score`/`list`・`kpi_weekly_summary`等を含む）が返れば接続成功です。有料紹介の使い方は[`docs/paid-placement-workflow.md`](paid-placement-workflow.md)を参照してください。
+25個のツール（`inquiry.*`・`job_order_gate_check`/`score`/`list`・`kpi_weekly_summary`・`invoice_create_draft`・`report_monthly_summary`等を含む）が返れば接続成功です。有料紹介の使い方は[`docs/paid-placement-workflow.md`](paid-placement-workflow.md)を参照してください。
 
 ---
 
@@ -95,7 +95,7 @@ pnpm run auth:get-token
 
 ## 7. 困ったときは / Where to ask for help / Ke mana harus bertanya jika ada masalah
 
-- 接続できない・トークンエラー：まずこの手順書の手順1〜3を再確認。解決しなければSlack `#90_dev`
+- 接続できない・トークンエラー：まずこの手順書の手順1〜3を再確認。解決しなければSlack OS v7.2の`#15`相当チャンネル
 - 業務的な質問（求人取込・承認・期限）：Slack `#20_派遣管理`
 - 法令解釈・findingsの是正方法：社労士・弁護士へのエスカレーション
 

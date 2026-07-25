@@ -16,6 +16,7 @@ export const wageUnitEnum = pgEnum("wage_unit", ["hour", "day", "month", "year"]
 export const jobOrderSourceEnum = pgEnum("job_order_source", ["zcareer", "exord", "direct", "sns"]);
 export const jobOrderStatusEnum = pgEnum("job_order_status", ["open", "filled", "closed"]);
 export const scoreGradeEnum = pgEnum("score_grade", ["S", "A", "B", "C"]);
+export const businessFlagEnum = pgEnum("business_flag", ["sugukuru", "win", "shared"]);
 export const supervisorGateResultEnum = pgEnum("supervisor_gate_result", [
   "allowed_supervisor",
   "blocked_construction_site",
@@ -45,6 +46,7 @@ export const jobOrders = pgTable("job_orders", {
   refundSystem: boolean("refund_system").notNull().default(false),
   source: jobOrderSourceEnum("source").notNull(),
   sourceArtifactId: uuid("source_artifact_id").references(() => sourceArtifacts.id),
+  businessFlag: businessFlagEnum("business_flag").notNull().default("sugukuru"),
   status: jobOrderStatusEnum("status").notNull().default("open"),
   // 求人票の肩書（監督職判定の参考。実作業はactualDutiesを正とする） / Job-title on the posting (reference for supervisor gate; actualDuties is authoritative) / Jabatan di lowongan (acuan gerbang pengawas; actualDuties yang berwenang)
   jobTitle: text("job_title"),
@@ -67,6 +69,8 @@ export const jobOrders = pgTable("job_orders", {
 export const referralOutcomeEnum = pgEnum("referral_outcome", ["hired", "rejected", "withdrawn", "pending"]);
 export const referralTypeEnum = pgEnum("referral_type", ["t2p", "pure", "direct"]);
 export const referralPhaseEnum = pgEnum("referral_phase", ["F1", "F2", "F3", "F4", "F5", "F6"]);
+export const conversionTypeEnum = pgEnum("conversion_type", ["t2p_conversion", "win_transition", "standard_placement_hire"]);
+export const placementRevenueCategoryEnum = pgEnum("placement_revenue_category", ["pure_placement", "dispatch_hire", "win_management"]);
 export const selectionStageEnum = pgEnum("selection_stage", [
   "registered",
   "screening",
@@ -74,7 +78,7 @@ export const selectionStageEnum = pgEnum("selection_stage", [
   "offer",
   "placed",
 ]);
-export const placementPatternEnum = pgEnum("placement_pattern", ["P1", "P2", "P3", "P4"]);
+export const placementPatternEnum = pgEnum("placement_pattern", ["P1", "P2", "P3", "P4", "P5"]);
 
 /** 紹介行：求人×求職の交差＝両帳簿の紹介欄（帳簿①②の接点） / Referral row: intersection of job order x job seeker (junction of Ledgers #1/#2) / Baris rujukan: perpotongan lowongan x pencari kerja (titik temu Buku Besar #1/#2) */
 export const jobOrderReferrals = pgTable("job_order_referrals", {
@@ -98,9 +102,14 @@ export const jobOrderReferrals = pgTable("job_order_referrals", {
   type: referralTypeEnum("type").notNull(),
   phase: referralPhaseEnum("phase"),
   dispatchAssignmentId: uuid("dispatch_assignment_id"),
-  // 選考段階・成約パターン（KPIファネル計測・P1〜P4分岐） / Selection stage & placement pattern (KPI funnel / P1–P4 branching) / Tahap seleksi & pola penempatan (funnel KPI / cabang P1–P4)
+  businessFlag: businessFlagEnum("business_flag").notNull().default("sugukuru"),
+  // 選考段階・成約パターン（KPIファネル計測・P1〜P5分岐） / Selection stage & placement pattern (KPI funnel / P1–P5 branching) / Tahap seleksi & pola penempatan (funnel KPI / cabang P1–P5)
   selectionStage: selectionStageEnum("selection_stage").notNull().default("registered"),
   placementPattern: placementPatternEnum("placement_pattern"),
+  conversionType: conversionTypeEnum("conversion_type"),
+  revenueCategory: placementRevenueCategoryEnum("revenue_category"),
+  expectedRevenueMin: numeric("expected_revenue_min", { precision: 12, scale: 2 }),
+  expectedRevenueMax: numeric("expected_revenue_max", { precision: 12, scale: 2 }),
   registeredAt: date("registered_at"),
   screeningAt: date("screening_at"),
   interviewAt: date("interview_at"),
@@ -134,6 +143,7 @@ export const jobSeekers = pgTable("job_seekers", {
   // 応募経路（WF-15Aの6択。Zキャリアは求人在庫側のためここには置かない） / Application channel (WF-15A's 6 options; Z-Career sits on the job-inventory side) / Jalur lamaran (6 opsi WF-15A; Z-Career ada di sisi stok lowongan)
   applicationChannel: applicationChannelEnum("application_channel"),
   inquiryId: uuid("inquiry_id"),
+  businessFlag: businessFlagEnum("business_flag").notNull().default("sugukuru"),
   // 同意日/範囲/提供先 / Consent date/scope/recipient / Tanggal/lingkup/penerima persetujuan
   piiConsent: jsonb("pii_consent").notNull(),
   status: jobSeekerStatusEnum("status").notNull().default("active"),
@@ -144,6 +154,7 @@ export const jobSeekers = pgTable("job_seekers", {
 });
 
 export const feeTypeEnum = pgEnum("fee_type", ["uketsuke", "todokede", "jogen"]);
+export const feeStatusEnum = pgEnum("fee_status", ["billable", "pending_negotiation", "on_hold"]);
 
 /** 手数料管理簿の正本（帳簿③） / Source of truth for the fee ledger (Ledger #3) / Sumber kebenaran buku besar biaya (Buku Besar #3) */
 export const feeRecords = pgTable("fee_records", {
@@ -155,8 +166,9 @@ export const feeRecords = pgTable("fee_records", {
   payerSnapshotId: uuid("payer_snapshot_id")
     .notNull()
     .references(() => partySnapshots.id),
-  feeType: feeTypeEnum("fee_type").notNull(),
-  amountInclTax: numeric("amount_incl_tax", { precision: 12, scale: 2 }).notNull(),
+  feeType: feeTypeEnum("fee_type"),
+  feeStatus: feeStatusEnum("fee_status").notNull().default("billable"),
+  amountInclTax: numeric("amount_incl_tax", { precision: 12, scale: 2 }),
   calcBasisWage: numeric("calc_basis_wage", { precision: 12, scale: 2 }),
   calcBasisRate: numeric("calc_basis_rate", { precision: 6, scale: 4 }),
   // 実際の徴収年月日（請求日ではない） / Actual collection date (not the invoice date) / Tanggal penagihan aktual (bukan tanggal faktur)
@@ -175,6 +187,7 @@ export const dispatchAssignments = pgTable("dispatch_assignments", {
   tenantId: tenantIdColumn(),
   staffId: text("staff_id").notNull(),
   companyId: text("company_id").notNull(),
+  businessFlag: businessFlagEnum("business_flag").notNull().default("sugukuru"),
   t2pFlag: boolean("t2p_flag").notNull().default(false),
   startDate: date("start_date").notNull(),
   endDate: date("end_date"),
@@ -183,6 +196,27 @@ export const dispatchAssignments = pgTable("dispatch_assignments", {
   // 就業条件明示書の法定項目を型付きで持つ別表 / Typed sub-table for statutory items of the working-conditions notice / Sub-tabel bertipe untuk item wajib dari pemberitahuan kondisi kerja
   conditionsTyped: jsonb("conditions_typed").notNull(),
   extras: jsonb("extras"),
+  createdAt: createdAtColumn(),
+  updatedAt: updatedAtColumn(),
+});
+
+export const feeInvoiceDraftStatusEnum = pgEnum("fee_invoice_draft_status", ["draft", "approved", "void"]);
+
+/** 請求ドラフト（freee本登録前の正本） / Invoice draft before freee posting / Draf tagihan sebelum posting freee */
+export const feeInvoiceDrafts = pgTable("fee_invoice_drafts", {
+  id: idColumn(),
+  tenantId: tenantIdColumn(),
+  referralId: uuid("referral_id")
+    .notNull()
+    .references(() => jobOrderReferrals.id, { onDelete: "cascade" }),
+  feeRecordId: uuid("fee_record_id").references(() => feeRecords.id, { onDelete: "set null" }),
+  status: feeInvoiceDraftStatusEnum("status").notNull().default("draft"),
+  payerCompanyId: text("payer_company_id").notNull(),
+  payerName: text("payer_name").notNull(),
+  amountInclTax: numeric("amount_incl_tax", { precision: 12, scale: 2 }),
+  feeStatus: feeStatusEnum("fee_status").notNull().default("billable"),
+  title: text("title").notNull(),
+  bodyText: text("body_text").notNull(),
   createdAt: createdAtColumn(),
   updatedAt: updatedAtColumn(),
 });

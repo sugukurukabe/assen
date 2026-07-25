@@ -48,11 +48,25 @@ const inputSchema = {
   hiredAt: z.string().optional().describe("採用年月日(YYYY-MM-DD)。outcome=hired時必須 / Hire date, required when outcome=hired / Tanggal perekrutan, wajib saat outcome=hired"),
   indefiniteEmployment: z.boolean().optional().describe("無期雇用か。outcome=hired時必須 / Whether employment is indefinite-term, required when outcome=hired / Apakah kontrak kerja tanpa batas waktu, wajib saat outcome=hired"),
   employer: employerSnapshotSchema.optional().describe("outcome=hired時必須（fee_recordsのpayer snapshotに使用） / Required when outcome=hired (used for the fee_records payer snapshot) / Wajib saat outcome=hired (digunakan untuk snapshot payer fee_records)"),
+  conversionType: z
+    .enum(["t2p_conversion", "win_transition", "standard_placement_hire"])
+    .optional()
+    .describe("WF-25H転換種別（紹介予定派遣の成立／WIN移行／通常紹介の入社） / WF-25H conversion type / Jenis konversi WF-25H"),
+  feeStatus: z
+    .enum(["billable", "pending_negotiation", "on_hold"])
+    .optional()
+    .describe("手数料ステータス。P5/WIN移行で協議中ならpending_negotiation / Fee status; use pending_negotiation for P5/WIN transition / Status biaya"),
+  revenueCategory: z
+    .enum(["pure_placement", "dispatch_hire", "win_management"])
+    .optional()
+    .describe("成果区分（純紹介／派遣入職／WIN管理） / Revenue category / Kategori hasil"),
+  expectedRevenueMin: z.number().optional().describe("見込収益下限 / Expected revenue minimum / Estimasi pendapatan minimum"),
+  expectedRevenueMax: z.number().optional().describe("見込収益上限 / Expected revenue maximum / Estimasi pendapatan maksimum"),
   conversionTerms: t2pReferralConditionsInputSchema
     .partial()
     .optional()
     .describe("outcome=hired時必須。⑦転換条件覚書の差込項目 / Required when outcome=hired. Fields for ⑦ conversion memo / Wajib saat outcome=hired. Field untuk memo konversi ⑦"),
-  fee: feeInputSchema.optional().describe("outcome=hired時必須。帳簿③へpostingする手数料情報 / Required when outcome=hired. Fee info posted to Ledger #3 / Wajib saat outcome=hired. Info biaya yang diposting ke Buku Besar #3"),
+  fee: feeInputSchema.optional().describe("outcome=hiredかつfeeStatus=billable時必須。帳簿③へpostingする手数料情報 / Required when outcome=hired and feeStatus=billable. Fee info posted to Ledger #3 / Wajib saat diterima dan billable"),
   nonHireRequestDetails: t2pReferralConditionsInputSchema
     .partial()
     .optional()
@@ -79,10 +93,17 @@ export function registerPlacementConfirm(server: McpServer, context: ServiceCont
         assertScope(context.principal, ["requester", "admin"]);
 
         if (args.outcome === "hired") {
-          if (!args.hiredAt || args.indefiniteEmployment === undefined || !args.employer || !args.conversionTerms || !args.fee) {
+          const feeStatus = args.feeStatus ?? "billable";
+          if (!args.hiredAt || args.indefiniteEmployment === undefined || !args.employer || !args.conversionTerms || !args.conversionType) {
             throw new UserInputError(
-              "outcome=hiredの場合、hiredAt・indefiniteEmployment・employer・conversionTerms・feeが必須です / When outcome=hired, hiredAt, indefiniteEmployment, employer, conversionTerms, and fee are required",
+              "outcome=hiredの場合、hiredAt・indefiniteEmployment・employer・conversionType・conversionTermsが必須です / When outcome=hired, hiredAt, indefiniteEmployment, employer, conversionType, and conversionTerms are required",
               "採用が確定した時点で判明している項目をすべて指定してください / Please supply all fields that are known once hiring is finalized",
+            );
+          }
+          if (feeStatus === "billable" && !args.fee) {
+            throw new UserInputError(
+              "feeStatus=billableの場合、feeが必須です / When feeStatus=billable, fee is required",
+              "P5/WIN移行で手数料協議中ならfeeStatus=pending_negotiationを指定してください / Use feeStatus=pending_negotiation when the P5/WIN fee is still under discussion",
             );
           }
         } else if (!args.nonHireRequestDetails) {
@@ -106,8 +127,13 @@ export function registerPlacementConfirm(server: McpServer, context: ServiceCont
                   hiredAt: args.hiredAt!,
                   indefiniteEmployment: args.indefiniteEmployment!,
                   employer: args.employer!,
+                  conversionType: args.conversionType!,
+                  feeStatus: args.feeStatus,
+                  revenueCategory: args.revenueCategory,
+                  expectedRevenueMin: args.expectedRevenueMin,
+                  expectedRevenueMax: args.expectedRevenueMax,
                   conversionTerms: args.conversionTerms!,
-                  fee: args.fee!,
+                  fee: args.fee,
                 }
               : {
                   outcome: "rejected",
@@ -135,7 +161,7 @@ export function registerPlacementConfirm(server: McpServer, context: ServiceCont
               ? [
                   "帳簿③記帳・請求ドラフト・随時届出案内・求人クローズは完了済みです（WF-25H相当）",
                   "document.generate_draftでdocType=t2p_conversion_memo（⑦）を生成してください",
-                  "#20へ在留手続の要否を連携し、#40で請求ドラフトを確認してください",
+                  "#20へ在留手続の要否を連携し、#15へ成約記録、#40で請求ドラフトを確認してください",
                 ]
               : [
                   "document.generate_draftでdocType=t2p_non_hire_reason_request（⑧）を生成してください",

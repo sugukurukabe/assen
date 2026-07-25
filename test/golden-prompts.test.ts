@@ -44,6 +44,7 @@ describe("golden promptハーネス（heuristicスタブでの配線検証） / 
         "inquiry_promote",
         "inquiry_record",
         "inquiry_update",
+        "invoice_create_draft",
         "job_order_analyze",
         "job_order_confirm",
         "job_order_gate_check",
@@ -55,6 +56,7 @@ describe("golden promptハーネス（heuristicスタブでの配線検証） / 
         "placement_confirm",
         "placement_record_rejection_reason",
         "referral_advance_stage",
+        "report_monthly_summary",
       ].sort(),
     );
   });

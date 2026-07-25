@@ -146,6 +146,8 @@ jobs:
           region: ${{ env.REGION }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           image: ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/assen/runtime:${{ github.sha }}
+          env_vars: |
+            SLACK_BOARD_CHANNEL_ID=${{ vars.SLACK_BOARD_CHANNEL_ID }}
           no_traffic: false
 
   # --------------------------------------------------------------------------
@@ -173,4 +175,5 @@ jobs:
             --project="${{ secrets.GCP_PROJECT_ID }}" \
             --region="${{ env.REGION }}" \
             --image="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/assen/outbox-worker:${{ github.sha }}" \
+            --update-env-vars="SLACK_KPI_CHANNEL_ID=${{ vars.SLACK_KPI_CHANNEL_ID }},SLACK_FINANCE_CHANNEL_ID=${{ vars.SLACK_FINANCE_CHANNEL_ID }},SLACK_BOARD_CHANNEL_ID=${{ vars.SLACK_BOARD_CHANNEL_ID }}" \
             --quiet

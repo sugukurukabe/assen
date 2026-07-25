@@ -31,6 +31,10 @@ const fieldsSchema = z.object({
   desiredOccupation: z.string().min(1).describe("希望職種 / Desired occupation / Pekerjaan yang diinginkan"),
   acceptedAt: z.string().min(1).describe("受付年月日(YYYY-MM-DD) / Accepted date / Tanggal diterima"),
   validUntil: z.string().min(1).describe("有効期間満了日(YYYY-MM-DD) / Valid-until date / Tanggal berlaku hingga"),
+  businessFlag: z
+    .enum(["sugukuru", "win", "shared"])
+    .optional()
+    .describe("事業区分（スグクル／WIN／共通） / Business flag (Sugukuru/WIN/shared) / Klasifikasi bisnis"),
 });
 
 const inputSchema = {

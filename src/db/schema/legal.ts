@@ -3,7 +3,7 @@
  * Legal layer (§4.5): versioned rule/evidence graph. Tracked in the DB (not YAML) so past documents remain reproducible
  * Lapisan hukum (§4.5): graf rule/evidence yang diberi versi. Dilacak di DB (bukan YAML) agar dokumen lama tetap dapat direproduksi
  */
-import { date, jsonb, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { date, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { createdAtColumn, idColumn, tenantIdColumn } from "./common.js";
 
 export const legalSources = pgTable("legal_sources", {
@@ -82,18 +82,24 @@ export const deadlinePolicies = pgTable("deadline_policies", {
   createdAt: createdAtColumn(),
 });
 
-export const deadlineInstances = pgTable("deadline_instances", {
-  id: idColumn(),
-  tenantId: tenantIdColumn(),
-  policyKey: text("policy_key")
-    .notNull()
-    .references(() => deadlinePolicies.key),
-  subjectType: text("subject_type").notNull(),
-  subjectId: text("subject_id").notNull(),
-  dueDate: date("due_date").notNull(),
-  fulfilledAt: timestamp("fulfilled_at", { withTimezone: true }),
-  createdAt: createdAtColumn(),
-});
+export const deadlineInstances = pgTable(
+  "deadline_instances",
+  {
+    id: idColumn(),
+    tenantId: tenantIdColumn(),
+    policyKey: text("policy_key")
+      .notNull()
+      .references(() => deadlinePolicies.key),
+    subjectType: text("subject_type").notNull(),
+    subjectId: text("subject_id").notNull(),
+    dueDate: date("due_date").notNull(),
+    fulfilledAt: timestamp("fulfilled_at", { withTimezone: true }),
+    createdAt: createdAtColumn(),
+  },
+  (table) => [
+    uniqueIndex("deadline_instances_tenant_subject_policy_uq").on(table.tenantId, table.subjectId, table.policyKey),
+  ],
+);
 
 export const evidenceTypeEnum = pgEnum("obligation_evidence_type", ["document", "ledger_row", "artifact"]);
 

@@ -96,7 +96,7 @@ AssenはStreamable HTTP transport（`/mcp`）で待ち受けます。Claude（De
 - ローカルCursor検証では`.env`の`AUTH_LOCAL_TOKEN`を使います。本番相当のClaude接続ではOAuth flowを使います
 - トークンはSlack等の平文チャットに貼らないでください。1人1トークンを想定し、共有アカウント運用は避けてください
 
-接続できたか確認するには、エージェントに「Assenで使えるツールを一覧して」と頼むか、`tools/list`を直接呼びます。有料紹介特化後は23個のツール（`inquiry.*`・`job_order_gate_check`/`score`/`list`・`kpi_weekly_summary`等を含む）が返れば接続成功です。対応表は[`docs/paid-placement-workflow.md`](paid-placement-workflow.md)を参照してください。
+接続できたか確認するには、エージェントに「Assenで使えるツールを一覧して」と頼むか、`tools/list`を直接呼びます。有料紹介特化後は25個のツール（`inquiry.*`・`job_order_gate_check`/`score`/`list`・`invoice_create_draft`・`report_monthly_summary`等を含む）が返れば接続成功です。対応表は[`docs/paid-placement-workflow.md`](paid-placement-workflow.md)を参照してください。
 
 ### 3.3 本番相当環境（Cloud Run）に接続する — 現状 / Connecting to the production-equivalent (Cloud Run) environment — current status / Terhubung ke lingkungan setara produksi (Cloud Run) — status saat ini
 
@@ -114,7 +114,7 @@ AssenはStreamable HTTP transport（`/mcp`）で待ち受けます。Claude（De
    https://assen-runtime-000000000000.asia-northeast1.run.app/mcp
    ```
 3. Google Workspaceアカウントでログインする
-4. `tools/list`で23個のツールが返れば成功
+4. `tools/list`で25個のツールが返れば成功
 
 `pnpm run auth:get-token`はトラブル時だけのfallbackです。通常運用では使いません。
 
@@ -333,7 +333,7 @@ sequenceDiagram
 
 - **求人取込・承認・期限に関する業務的な質問**：Slack `#20_派遣管理`
 - **求人取込の入口（analyzeの結果がおかしい等）**：Slack `#10_deal_desk`
-- **Assen自体の不具合・仕様確認**：Slack `#90_dev`
+- **Assen自体の不具合・仕様確認**：Slack OS v7.2の`#15`相当チャンネル
 - **法令解釈・findingsの是正方法**：社労士・弁護士へのエスカレーション（該当findingの`ruleKey`と`message`を添えて相談する）
 
 ---

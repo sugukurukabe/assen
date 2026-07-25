@@ -46,6 +46,7 @@ export interface ConfirmJobSeekerFields {
   desiredOccupation: string;
   acceptedAt: string;
   validUntil: string;
+  businessFlag?: "sugukuru" | "win" | "shared";
 }
 
 export interface ConfirmJobSeekerInput {
@@ -99,6 +100,7 @@ export async function confirmJobSeeker(db: Db, input: ConfirmJobSeekerInput): Pr
       desiredOccupation: input.fields.desiredOccupation,
       acceptedAt: input.fields.acceptedAt,
       validUntil: input.fields.validUntil,
+      businessFlag: input.fields.businessFlag ?? "sugukuru",
       piiConsent: { ...input.piiConsent },
       status: "active",
     });

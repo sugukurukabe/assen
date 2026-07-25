@@ -17,6 +17,7 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "../../db/schema/index.js";
 import { dispatchAssignments, dispatchLedgerEntries } from "../../db/schema/ledgers.js";
 import { factAssertions } from "../../db/schema/evidence.js";
+import { deadlineInstances } from "../../db/schema/legal.js";
 import { transactionalOutbox } from "../../db/schema/outbox.js";
 import { createPartySnapshot } from "./party-snapshot.js";
 import { appendAuditEvent } from "../../audit/hash-chain.js";
@@ -26,6 +27,21 @@ import { UserInputError } from "../../lib/errors.js";
 import type { AuthenticatedPrincipal } from "../../lib/auth.js";
 
 type Db = NodePgDatabase<typeof schema>;
+
+const T2P_DEADLINE_POLICIES = [
+  { key: "t2p_month_4", months: 4 },
+  { key: "t2p_month_5", months: 5 },
+  { key: "t2p_month_6", months: 6 },
+] as const;
+
+function addMonths(isoDate: string, months: number): string {
+  const date = new Date(`${isoDate}T00:00:00.000Z`);
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth() + months;
+  const day = date.getUTCDate();
+  const lastDayOfTargetMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(year, month, Math.min(day, lastDayOfTargetMonth))).toISOString().slice(0, 10);
+}
 
 export interface WorkerSnapshotInput {
   staffId: string;
@@ -43,6 +59,7 @@ export interface ClientSnapshotInput {
 }
 
 export interface DispatchAssignmentFields {
+  businessFlag?: "sugukuru" | "win" | "shared";
   t2pFlag: boolean;
   startDate: string;
   endDate?: string;
@@ -149,6 +166,7 @@ export async function confirmDispatchAssignment(
       tenantId: input.tenantId,
       staffId: input.worker.staffId,
       companyId: input.client.companyId,
+      businessFlag: input.assignment.businessFlag ?? "sugukuru",
       t2pFlag: input.assignment.t2pFlag,
       startDate: input.assignment.startDate,
       endDate: input.assignment.endDate,
@@ -191,6 +209,27 @@ export async function confirmDispatchAssignment(
       actualVsPlan: input.ledgerEntry.actualVsPlan,
     });
 
+    const t2pDeadlines: Array<{ policyKey: string; dueDate: string }> = [];
+    if (input.assignment.t2pFlag) {
+      for (const policy of T2P_DEADLINE_POLICIES) {
+        const dueDate = addMonths(input.assignment.startDate, policy.months);
+        await tx
+          .insert(deadlineInstances)
+          .values({
+            id: randomUUID(),
+            tenantId: input.tenantId,
+            policyKey: policy.key,
+            subjectType: "dispatch_assignment",
+            subjectId: dispatchAssignmentId,
+            dueDate,
+          })
+          .onConflictDoNothing({
+            target: [deadlineInstances.tenantId, deadlineInstances.subjectId, deadlineInstances.policyKey],
+          });
+        t2pDeadlines.push({ policyKey: policy.key, dueDate });
+      }
+    }
+
     // ③人間確認：この確定操作をもってfact_assertionsを検証済みにする（sourceArtifactId指定時のみ） / Human verification: marks fact_assertions verified when sourceArtifactId is provided / Verifikasi manusia: menandai fact_assertions terverifikasi hanya jika sourceArtifactId diberikan
     if (input.sourceArtifactId) {
       const confirmedFieldPaths = Object.keys(input.assignment.conditionsTyped);
@@ -228,6 +267,18 @@ export async function confirmDispatchAssignment(
       idempotencyKey: input.idempotencyKey,
       externalReference: dispatchAssignmentId,
     });
+
+    if (t2pDeadlines.length > 0) {
+      await enqueueOutboxEvent(tx, {
+        tenantId: input.tenantId,
+        aggregateType: "dispatch_assignment",
+        aggregateId: dispatchAssignmentId,
+        eventType: "t2p.deadlines_created",
+        payload: { dispatchAssignmentId, t2pDeadlines, reason: input.reason },
+        idempotencyKey: `${input.idempotencyKey}:t2p-deadlines`,
+        externalReference: dispatchAssignmentId,
+      });
+    }
 
     return { dispatchAssignmentId, dispatchLedgerEntryId, alreadyProcessed: false };
   });

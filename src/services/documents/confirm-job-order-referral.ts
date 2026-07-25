@@ -37,8 +37,9 @@ export interface ConfirmJobOrderReferralInput {
   jobSeekerId: string;
   referredAt: string;
   type: "t2p" | "pure" | "direct";
-  // 成約パターンP1〜P4（紹介ローンチ設計書）。省略時はtypeから推定 / Placement pattern P1–P4; inferred from type when omitted / Pola penempatan P1–P4; disimpulkan dari type jika dihilangkan
-  placementPattern?: "P1" | "P2" | "P3" | "P4";
+  businessFlag?: "sugukuru" | "win" | "shared";
+  // 成約パターンP1〜P5（紹介ローンチ設計書）。省略時はtypeから推定 / Placement pattern P1–P5; inferred from type when omitted / Pola penempatan P1–P5; disimpulkan dari type jika dihilangkan
+  placementPattern?: "P1" | "P2" | "P3" | "P4" | "P5";
   // ④⑤書類差込用の法定項目（部分入力可・doc-type-registry.tsのschemaでdocType生成時に検証） / Statutory items for ④⑤ (partial input allowed; validated against the docType's schema at generation time) / Item wajib untuk ④⑤ (input parsial diperbolehkan; divalidasi terhadap skema docType saat generate)
   conditionsTyped?: Record<string, unknown>;
   // dispatch_assignment.confirmで確定した⑥T2P個別契約書（t2pFlag=true）のID（任意・後から紐付け可） / Id of the ⑥ T2P individual contract (t2pFlag=true) confirmed via dispatch_assignment.confirm (optional; can be linked later) / Id kontrak individual T2P ⑥ (t2pFlag=true) yang dikonfirmasi via dispatch_assignment.confirm (opsional; dapat dihubungkan nanti)
@@ -80,7 +81,14 @@ export async function confirmJobOrderReferral(db: Db, input: ConfirmJobOrderRefe
 
     const placementPattern =
       input.placementPattern ??
-      (input.type === "t2p" ? "P3" : jobOrder.source === "direct" ? "P2" : "P1");
+      (input.type === "t2p"
+        ? "P3"
+        : jobSeeker.applicationChannel === "internal_conversion"
+          ? "P4"
+          : jobOrder.source === "direct"
+            ? "P2"
+            : "P1");
+    const businessFlag = input.businessFlag ?? jobSeeker.businessFlag ?? jobOrder.businessFlag ?? "sugukuru";
 
     const jobOrderReferralId = randomUUID();
     await tx.insert(jobOrderReferrals).values({
@@ -91,6 +99,7 @@ export async function confirmJobOrderReferral(db: Db, input: ConfirmJobOrderRefe
       referredAt: input.referredAt,
       outcome: "pending",
       type: input.type,
+      businessFlag,
       phase: "F2",
       selectionStage: "screening",
       placementPattern,

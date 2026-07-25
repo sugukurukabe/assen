@@ -39,6 +39,8 @@ function baseEnv(overrides: Partial<AssenEnv>): AssenEnv {
     SLACK_BOT_TOKEN: "",
     SLACK_APPROVAL_CHANNEL_ID: "",
     SLACK_KPI_CHANNEL_ID: "",
+    SLACK_FINANCE_CHANNEL_ID: "",
+    SLACK_BOARD_CHANNEL_ID: "",
     GOOGLE_OAUTH_CLIENT_ID: "",
     GOOGLE_OAUTH_CLIENT_SECRET: "",
     TOKEN_EXCHANGE_ALLOWLIST_JSON: "[]",

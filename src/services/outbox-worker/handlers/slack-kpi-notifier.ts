@@ -16,6 +16,9 @@ export const notifySlackOnWeeklyKpi: OutboxHandler = async (event) => {
   const payload = payloadSchema.parse(event.payload);
   const env = loadEnv();
   if (!env.SLACK_KPI_CHANNEL_ID) {
+    if (env.NODE_ENV === "production") {
+      throw new Error("SLACK_KPI_CHANNEL_ID is required in production");
+    }
     // 未設定なら承認チャンネルへも送らず、postSlackMessageのログフォールバックに任せる
     // If unset, do not fall back to the approval channel; let postSlackMessage log-only
     await postSlackMessage({ text: payload.slackText, channelId: "" });

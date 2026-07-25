@@ -31,7 +31,7 @@ export interface DmAnswers {
   careerGoal?: string;
 }
 
-const AUTO_CLOSE_DAYS = 3;
+const AUTO_CLOSE_DAYS = 7;
 
 function isDmComplete(answers: DmAnswers): boolean {
   return Boolean(
@@ -161,7 +161,7 @@ export async function updateInquiry(db: Db, input: UpdateInquiryInput) {
     updatedAt: now,
   };
 
-  // 3日無応答の自動クローズ（set_sent後） / Auto-close after 3 days with no response (post set_sent) / Tutup otomatis 3 hari tanpa respons (setelah set_sent)
+  // 7日無応答の自動クローズ（set_sent後） / Auto-close after 7 days with no response (post set_sent) / Tutup otomatis 7 hari tanpa respons (setelah set_sent)
   if (input.autoCloseStale !== false && status === "set_sent" && next.setSentAt) {
     const deadline = new Date(next.setSentAt.getTime() + AUTO_CLOSE_DAYS * 24 * 60 * 60 * 1000);
     const setComplete = isApplicationSetComplete(next);
@@ -172,7 +172,7 @@ export async function updateInquiry(db: Db, input: UpdateInquiryInput) {
           ...next,
           status: "closed",
           closedAt: now,
-          closeReason: "no_response_3_days",
+          closeReason: "no_response_7_days",
         })
         .where(eq(inquiries.id, input.inquiryId));
       return {
@@ -181,7 +181,7 @@ export async function updateInquiry(db: Db, input: UpdateInquiryInput) {
         dmComplete,
         applicationSetComplete: false,
         autoClosed: true,
-        nextActions: ["3日無応答のため自動クローズしました。追いかけません / Auto-closed after 3 days with no response; do not chase"],
+        nextActions: ["7日無応答のため自動クローズしました。追いかけません / Auto-closed after 7 days with no response; do not chase"],
       };
     }
   }
@@ -288,9 +288,9 @@ export async function promoteInquiry(db: Db, input: PromoteInquiryInput) {
 }
 
 /**
- * set_sentから3日経過しセット未完備の問い合わせを一括クローズする
- * Bulk-close set_sent inquiries older than 3 days without a complete set
- * Tutup massal inquiry set_sent >3 hari tanpa paket lengkap
+ * set_sentから7日経過しセット未完備の問い合わせを一括クローズする
+ * Bulk-close set_sent inquiries older than 7 days without a complete set
+ * Tutup massal inquiry set_sent >7 hari tanpa paket lengkap
  */
 export async function closeStaleInquiries(db: Db, tenantId: string): Promise<{ closedCount: number }> {
   const deadline = new Date(Date.now() - AUTO_CLOSE_DAYS * 24 * 60 * 60 * 1000);
@@ -313,7 +313,7 @@ export async function closeStaleInquiries(db: Db, tenantId: string): Promise<{ c
     }
     await db
       .update(inquiries)
-      .set({ status: "closed", closedAt: now, closeReason: "no_response_3_days", updatedAt: now })
+      .set({ status: "closed", closedAt: now, closeReason: "no_response_7_days", updatedAt: now })
       .where(eq(inquiries.id, row.id));
     closedCount += 1;
   }

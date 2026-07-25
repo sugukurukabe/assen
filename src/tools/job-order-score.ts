@@ -30,6 +30,11 @@ const inputSchema = {
   hasDormitory: z.boolean().optional().describe("社員寮あり / Has dormitory / Ada asrama"),
   hasRelocationAllowance: z.boolean().optional().describe("引越し手当あり / Has relocation allowance / Ada tunjangan pindah"),
   kyushuLocation: z.boolean().optional().describe("九州勤務地あり / Kyushu work location / Lokasi kerja Kyushu"),
+  laneFit: z
+    .enum(["hotel", "restaurant", "mobile_shop", "ja_office", "none"])
+    .optional()
+    .describe("§03の4レーン適合（ホテル/外食/携帯ショップ/JA事務員/なし） / Fit to the four §03 lanes / Kecocokan dengan 4 jalur"),
+  wantsExperiencedWorker: z.boolean().optional().describe("社会人経験者を求める求人か / Whether the job prefers experienced workers / Apakah mencari pekerja berpengalaman"),
   isConstructionSupervisorLane: z
     .boolean()
     .optional()
@@ -42,7 +47,7 @@ export function registerJobOrderScore(server: McpServer, context: ServiceContext
     {
       title: "決めやすい案件スコアを付ける",
       description:
-        "Zキャリア画面の内定率・書類通過率・応募数・候補者適合・生活条件からS(8+)/A(5–7)/B/Cを算出して求人に保存する。建設監督系のB/CはP2レーン送りフラグを返す。 / Computes S(8+)/A(5–7)/B/C from Z-Career offer rate, document pass rate, applicant count, pool fit and living conditions, and saves it on the job order. Construction-supervisor B/C returns a P2-lane flag. / Menghitung S(8+)/A(5–7)/B/C dari tingkat penerimaan, lolos berkas, jumlah pelamar, kecocokan pool dan kondisi hidup Z-Career, lalu menyimpannya. B/C pengawas konstruksi mengembalikan flag jalur P2.",
+        "Zキャリア/Ex-ord/直入の内定率・書類通過率・応募数・候補者適合・生活条件・§03レーン適合からS(9+)/A(6–8)/B/Cを算出して求人に保存する。建設監督系のB/CはP2レーン送りフラグを返す。 / Computes S(9+)/A(6–8)/B/C from offer rate, document pass rate, applicant count, pool fit, living conditions, and §03 lane fit. / Menghitung S(9+)/A(6–8)/B/C dari tingkat penerimaan, lolos berkas, jumlah pelamar, kecocokan pool, kondisi hidup, dan kecocokan jalur §03.",
       inputSchema,
       annotations: {
         readOnlyHint: false,
@@ -67,6 +72,8 @@ export function registerJobOrderScore(server: McpServer, context: ServiceContext
             hasDormitory: args.hasDormitory,
             hasRelocationAllowance: args.hasRelocationAllowance,
             kyushuLocation: args.kyushuLocation,
+            laneFit: args.laneFit,
+            wantsExperiencedWorker: args.wantsExperiencedWorker,
             isConstructionSupervisorLane: args.isConstructionSupervisorLane,
           },
         });

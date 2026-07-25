@@ -94,6 +94,14 @@ const envSchema = z.object({
   // Destination for the weekly 5-metric KPI post (#15 equivalent). Skips auto Slack KPI posts when unset
   // Tujuan posting KPI 5 indikator mingguan (setara #15). Lewati posting Slack KPI otomatis jika tidak diatur
   SLACK_KPI_CHANNEL_ID: z.string().optional().default(""),
+  // 請求ドラフト・支払系通知の投稿先（#40_finance相当）。未設定なら承認チャンネルへフォールバックせずログのみ
+  // Destination for invoice/payment notifications (#40_finance equivalent). Logs only when unset
+  // Tujuan notifikasi tagihan/pembayaran (setara #40_finance). Hanya log jika tidak diatur
+  SLACK_FINANCE_CHANNEL_ID: z.string().optional().default(""),
+  // 月次ボード・経営レビュー投稿先（#95相当）。月次レポートは任意channelではなくここへ固定
+  // Destination for monthly board / management review posts (#95 equivalent). Monthly reports post here, not to arbitrary channels
+  // Tujuan posting laporan bulanan / review manajemen (setara #95). Laporan bulanan diposting ke sini, bukan channel bebas
+  SLACK_BOARD_CHANNEL_ID: z.string().optional().default(""),
   // トークン交換層（Google IDトークン→Assen audience JWT、自社MVPゲート・docs/registry-readiness-checklist.md G節）。
   // GOOGLE_OAUTH_CLIENT_IDが未設定なら機能全体を無効化する（/oauth/token-exchange・/oauth/jwks.jsonは404を返す）
   // Token-exchange layer (Google ID token -> Assen audience JWT; internal-MVP gate, checklist section G).

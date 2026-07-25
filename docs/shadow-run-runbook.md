@@ -37,7 +37,7 @@ Dokumen ini adalah prosedur eksekusi untuk "shadow run internal" pada bagian G c
 
 ## シャドーラン中に記録すること / What to record during the shadow run / Yang harus dicatat selama shadow run
 
-シャドーラン終了後、以下を`#90_dev`（Slack）へ簡潔に報告する：
+シャドーラン終了後、以下をSlack OS v7.2の`#15`相当チャンネルへ簡潔に報告する：
 
 - [ ] `job_order_analyze`（または`dispatch_assignment_confirm`前の確認）で、LLMの抽出結果と実際の案件内容に食い違いがあったか（あれば具体的に）
 - [ ] `compliance_evaluate`のfindingsで`ambiguous`／`expert_review_required`が出たか（出た場合、`ruleKey`とその時の対応）
