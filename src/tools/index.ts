@@ -10,6 +10,8 @@ import { registerJobOrderConfirm } from "./job-order-confirm.js";
 import { registerJobOrderGateCheck } from "./job-order-gate-check.js";
 import { registerJobOrderScore } from "./job-order-score.js";
 import { registerJobOrderList } from "./job-order-list.js";
+import { registerStaffList } from "./staff-list.js";
+import { registerPartnerList } from "./partner-list.js";
 import { registerDispatchAssignmentConfirm } from "./dispatch-assignment-confirm.js";
 import { registerComplianceEvaluate } from "./compliance-evaluate.js";
 import { registerDocumentPreview } from "./document-preview.js";
@@ -20,6 +22,7 @@ import { registerDocumentAttachExecutedCopy } from "./document-attach-executed-c
 import { registerDocumentRecordDelivery } from "./document-record-delivery.js";
 import { registerDocumentSupersede } from "./document-supersede.js";
 import { registerJobSeekerConfirm } from "./job-seeker-confirm.js";
+import { registerJobSeekerList } from "./job-seeker-list.js";
 import { registerJobOrderReferralConfirm } from "./job-order-referral-confirm.js";
 import { registerReferralAdvanceStage } from "./referral-advance-stage.js";
 import { registerPlacementConfirm } from "./placement-confirm.js";
@@ -37,6 +40,8 @@ export function registerAllTools(server: McpServer, context: ServiceContext): vo
   registerJobOrderGateCheck(server, context);
   registerJobOrderScore(server, context);
   registerJobOrderList(server, context);
+  registerStaffList(server, context);
+  registerPartnerList(server, context);
   registerDispatchAssignmentConfirm(server, context);
   registerComplianceEvaluate(server, context);
   registerDocumentPreview(server, context);
@@ -47,6 +52,7 @@ export function registerAllTools(server: McpServer, context: ServiceContext): vo
   registerDocumentRecordDelivery(server, context);
   registerDocumentSupersede(server, context);
   registerJobSeekerConfirm(server, context);
+  registerJobSeekerList(server, context);
   registerJobOrderReferralConfirm(server, context);
   registerReferralAdvanceStage(server, context);
   registerPlacementConfirm(server, context);

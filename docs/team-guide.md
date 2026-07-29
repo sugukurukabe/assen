@@ -11,6 +11,11 @@ Dokumen ini adalah panduan praktis untuk anggota tim yang menggunakan Assen dala
 | [`法定書類自動化MCP_設計書_v1.md`](../../法定書類自動化MCP_設計書_v1.md) | 仕様・法的根拠・意思決定の経緯（正） | 実装者・レビュアー |
 | [`README.md`](../README.md) | 実装ガイド（セットアップ・アーキテクチャ・Tool/Resource一覧） | 開発者 |
 | **本ドキュメント（`docs/team-guide.md`）** | **実際の使い方（誰が・いつ・どのツールを・どう呼ぶか）** | **業務担当者・エージェント運用者** |
+| [`docs/giin-koku-paid-placement-guide.md`](giin-koku-paid-placement-guide.md) | **有料職業紹介×技人国の全体図。Zキャリア伴走者にも見せられる外部共有向け説明** | **社内チーム・インドネシア人メンバー・Zキャリア伴走者** |
+
+まず全体像を説明したい場合は、[`docs/giin-koku-paid-placement-guide.md`](giin-koku-paid-placement-guide.md)から読むのがおすすめです。
+If you need the big picture first, start with [`docs/giin-koku-paid-placement-guide.md`](giin-koku-paid-placement-guide.md).
+Jika ingin memahami gambaran besar terlebih dahulu, mulai dari [`docs/giin-koku-paid-placement-guide.md`](giin-koku-paid-placement-guide.md).
 
 ---
 
@@ -96,7 +101,7 @@ AssenはStreamable HTTP transport（`/mcp`）で待ち受けます。Claude（De
 - ローカルCursor検証では`.env`の`AUTH_LOCAL_TOKEN`を使います。本番相当のClaude接続ではOAuth flowを使います
 - トークンはSlack等の平文チャットに貼らないでください。1人1トークンを想定し、共有アカウント運用は避けてください
 
-接続できたか確認するには、エージェントに「Assenで使えるツールを一覧して」と頼むか、`tools/list`を直接呼びます。有料紹介特化後は25個のツール（`inquiry.*`・`job_order_gate_check`/`score`/`list`・`invoice_create_draft`・`report_monthly_summary`等を含む）が返れば接続成功です。対応表は[`docs/paid-placement-workflow.md`](paid-placement-workflow.md)を参照してください。
+接続できたか確認するには、エージェントに「Assenで使えるツールを一覧して」と頼むか、`tools/list`を直接呼びます。有料紹介特化後は28個のツール（`staff_list`・`job_seeker_list`・`partner_list`・`inquiry.*`・`job_order_gate_check`/`score`/`list`・`invoice_create_draft`・`report_monthly_summary`等を含む）が返れば接続成功です。対応表は[`docs/paid-placement-workflow.md`](paid-placement-workflow.md)を参照してください。
 
 ### 3.3 本番相当環境（Cloud Run）に接続する — 現状 / Connecting to the production-equivalent (Cloud Run) environment — current status / Terhubung ke lingkungan setara produksi (Cloud Run) — status saat ini
 
@@ -114,7 +119,7 @@ AssenはStreamable HTTP transport（`/mcp`）で待ち受けます。Claude（De
    https://assen-runtime-000000000000.asia-northeast1.run.app/mcp
    ```
 3. Google Workspaceアカウントでログインする
-4. `tools/list`で25個のツールが返れば成功
+4. `tools/list`で28個のツールが返れば成功
 
 `pnpm run auth:get-token`はトラブル時だけのfallbackです。通常運用では使いません。
 

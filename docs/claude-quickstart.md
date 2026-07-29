@@ -46,7 +46,23 @@ claude mcp add --transport http assen \
 
 > Assenで使えるツールを一覧して
 
-25個のツール（`inquiry.*`・`job_order_gate_check`/`score`/`list`・`kpi_weekly_summary`・`invoice_create_draft`・`report_monthly_summary`等を含む）が返れば接続成功です。有料紹介の使い方は[`docs/paid-placement-workflow.md`](paid-placement-workflow.md)を参照してください。
+28個のツールが返れば接続成功です。読み取り選択肢として`staff_list`・`job_seeker_list`・`partner_list`が含まれることを確認してください。有料紹介の使い方は[`docs/paid-placement-workflow.md`](paid-placement-workflow.md)を参照してください。
+
+接続後の確認プロンプト例 / Example prompts after connect / Contoh prompt setelah terhubung:
+
+```text
+Assenで使えるツールを一覧して。staff_list / job_seeker_list / partner_list があるか確認して
+```
+
+```text
+partner_list を queryなしで呼び、items と total を見せて。機微情報（住所・電話・口座）が返っていないことも確認して
+```
+
+```text
+staff_list を呼び出し、value が氏名ではなく staffId になっていることを確認して
+```
+
+`job_seeker_list` はAssen DB（帳簿②）だけで動きます。`staff_list` / `partner_list` はfreee OAuthとSecret Managerの対応表がCloud Runに設定されている必要があります。未設定なら空配列ではなくエラーが返ります（正常な0件と区別できます）。
 
 ---
 

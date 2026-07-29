@@ -52,11 +52,14 @@ describe("golden promptハーネス（heuristicスタブでの配線検証） / 
         "job_order_score",
         "job_order_referral_confirm",
         "job_seeker_confirm",
+        "job_seeker_list",
         "kpi_weekly_summary",
+        "partner_list",
         "placement_confirm",
         "placement_record_rejection_reason",
         "referral_advance_stage",
         "report_monthly_summary",
+        "staff_list",
       ].sort(),
     );
   });

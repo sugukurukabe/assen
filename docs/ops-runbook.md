@@ -91,13 +91,13 @@ for ROLE in roles/run.admin roles/run.sourceDeveloper roles/iam.serviceAccountUs
 done
 ```
 
-GitHub ActionsのWorkload Identity Federationプールは`aios`本体のもの（`github-pool`/`github-provider`、プロジェクト番号`000000000000`）を再利用し、`assen-deploy`をそのプールに紐付ける。**実行済み（2026-07-24）**：
+GitHub ActionsのWorkload Identity Federationプールは既存のもの（`github-pool`/`github-provider`、プロジェクト番号`000000000000`）を再利用し、独立リポジトリ化後の`assen`を`assen-deploy`に紐付ける。**実行済み（2026-07-24、独立リポジトリ化後はrepository属性を要確認）**：
 
 ```bash
 gcloud iam service-accounts add-iam-policy-binding \
   assen-deploy@REDACTED-GCP-PROJECT.iam.gserviceaccount.com \
   --role="roles/iam.workloadIdentityUser" \
-  --member="principalSet://iam.googleapis.com/projects/000000000000/locations/global/workloadIdentityPools/github-pool/attribute.repository/sugukurukabe/aios"
+  --member="principalSet://iam.googleapis.com/projects/000000000000/locations/global/workloadIdentityPools/github-pool/attribute.repository/sugukurukabe/assen"
 ```
 
 ## 3. Cloud SQL（専用インスタンス） / Cloud SQL (dedicated instance) / Cloud SQL (instance khusus)
@@ -347,7 +347,25 @@ gcloud run deploy assen-runtime \
    gcloud run jobs execute assen-migrator \
      --project=REDACTED-GCP-PROJECT --region=asia-northeast1 --wait
    ```
-4. Claude Connectorで`https://assen-runtime-000000000000.asia-northeast1.run.app/mcp`を追加し、Google Workspaceログイン→`tools/list`が25本返ることを確認する。`TOKEN_EXCHANGE_ALLOWLIST_JSON`にないemailは従来どおり拒否される。
+4. Claude Connectorで`https://assen-runtime-000000000000.asia-northeast1.run.app/mcp`を追加し、Google Workspaceログイン→`tools/list`が28本返ることを確認する（`staff_list` / `job_seeker_list` / `partner_list`を含む）。`TOKEN_EXCHANGE_ALLOWLIST_JSON`にないemailは従来どおり拒否される。
+
+### 6.2.1 freee読み取り口（Claudeのstaff_list / partner_list） / freee read adapters / Adapter baca freee
+
+Claudeから`staff_list` / `partner_list`を使うには、既存OAuthに加えてfreee用SecretとCloud Run envが必要です。**未設定でもAssen全体は起動し、DB系ツール（`job_seeker_list`含む）は使えます。** freee未設定時は当該2ツールだけ明示エラーになります。
+
+Secrets（例）:
+- `assen-freee-client-id` / `assen-freee-client-secret` / `assen-freee-company-id`
+- `assen-freee-token`（JSON: `{"accessToken","refreshToken","expiresAtEpochSeconds"}`）
+- `assen-freee-staff-id-mapping`（JSON: `{"employees":[{"freeeEmployeeId":"...","staffId":"..."}]}`）
+
+`assen-runtime` SAに必要なIAM:
+- token secret: `roles/secretmanager.secretAccessor` と `roles/secretmanager.secretVersionAdder`（refresh後の新version追加）
+- staff mapping secret: `roles/secretmanager.secretAccessor` のみ
+
+Cloud Run env例:
+`FREEE_CLIENT_ID` / `FREEE_CLIENT_SECRET` / `FREEE_COMPANY_ID` / `FREEE_TOKEN_SECRET_NAME` / `FREEE_STAFF_ID_MAPPING_SECRET_NAME` / `FREEE_CACHE_TTL_SECONDS=300`
+
+Phase B前ゲート: freee会計で除外7社を`available=false`にし、小林グリーンファーム・パワーウィング・山崎農園を正式名称で登録する。
 
 ### 6.3 outbox-worker（Cloud Run Worker Pool）
 

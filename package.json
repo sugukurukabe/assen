@@ -2,6 +2,7 @@
   "name": "@sugukuru/assen",
   "version": "0.1.0",
   "description": "法定書類自動化MCP「Assen」。職安法・派遣法・労基法の法定帳簿・書類生成を継続的コンプライアンスOSとして提供する。 / Legal-document automation MCP server providing a continuous compliance OS for Japanese employment placement and dispatch law. / Server MCP otomatisasi dokumen hukum yang menyediakan OS kepatuhan berkelanjutan untuk hukum ketenagakerjaan Jepang.",
+  "license": "Apache-2.0",
   "type": "module",
   "private": true,
   "packageManager": "pnpm@10.33.0",
@@ -28,6 +29,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1092.0",
+    "@google-cloud/secret-manager": "^6.3.0",
     "@modelcontextprotocol/sdk": "1.29.0",
     "drizzle-orm": "0.45.2",
     "jose": "^6.2.4",

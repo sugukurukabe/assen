@@ -107,6 +107,9 @@ npm run audit:verify           # audit_eventsのハッシュチェーン検証CL
 
 | Tool | 用途 | readOnly | 破壊的 |
 |---|---|---|---|
+| `staff_list` | freee人事労務の従業員からSlack選択肢用の`staffId`と表示名だけを返す | yes | no |
+| `job_seeker_list` | 帳簿②の求職者からSlack選択肢用の求職者IDと氏名だけを返す | yes | no |
+| `partner_list` | freee会計の取引先からSlack選択肢用の安定IDと登記正式社名だけを返す | yes | no |
 | `job_order_analyze` | 求人メール等からヒューリスティック抽出し、fact_assertionsとconfidence/矛盾を返す | no | no |
 | `job_order_confirm` | 人間確認済みの値で求人管理簿（帳簿①）を確定する | no | no |
 | `compliance_evaluate` | subjectに対する法定ルールを評価し、5値判定（pass/fail/incomplete/ambiguous/expert_review_required）のfindingsを返す | yes | no |
@@ -172,7 +175,7 @@ Since NODE_ENV / PII_ENCRYPTION_KEY / DB_POOL_* / MAX_REQUEST_BODY_BYTES / AUTH_
 - **Server Cardを整備**：`repository`/`contact`/`documentation`/`license`欄を追加（未設定時はURLを捏造せずnullを返す。`SERVER_CARD_REPOSITORY_URL`/`SERVER_CARD_CONTACT_URL`で設定）
 - **本番向けDockerfileを新規作成**：`runtime`（サーバー本体）／`migrator`（`db:migrate`実行専用）の2ターゲット。ローカルで実際にビルド・起動・マイグレーション適用まで検証済み
 - **GitHub Actions CIを新規作成**：`.github/workflows/ci.yml`（lint/typecheck/test/legal:check-mapping/audit:verify/build、Postgres+MinIOを使った統合テスト、Dockerビルド検証）
-- **LICENSE・SECURITY.mdを新規作成**：ライセンスは決定までの安全側既定値（全著作権留保）。SECURITY.mdの連絡先はTODOプレースホルダ
+- **LICENSE・SECURITY.mdを新規作成**：ライセンスはApache-2.0へ統一済み。SECURITY.mdの連絡先はTODOプレースホルダ
 - **本番実行パスの不具合を修正**：`npm run build`後に`node dist/server.js`が存在しないパスだった（正しくは`dist/src/server.js`。`package.json`の`start`を修正）ことと、`legal/`配下のJSON/テンプレート読込が固定階層の相対パス（`join(currentDir, "..", "..", "..")`）に依存しdist実行時に破綻することを発見し、`src/lib/project-root.ts`（祖先ディレクトリ探索）へ置き換えて修正。**この不具合により、これまで一度も`node dist/...`での実行やDockerビルドは動作確認されていなかった**
 
 ### エンジニアリング下準備（第3ラウンド：outbox worker実行環境） / Engineering groundwork pass 3: outbox worker runtime / Dasar teknik ronde 3: runtime outbox worker
@@ -287,7 +290,7 @@ M2依存の意思決定（外部連携handlerの内容）とは独立に進め�
 - **golden promptテストの実LLM未接続**：ハーネス（フィクスチャ・実カタログ取得・正誤判定）は整備済みだが、`ToolSelector`の実装はheuristicスタブのみ。実LLMのプロバイダ決定後に差し替えが必要（M3ゲート対象）
 - **本番相当環境でのバックアップ/PITR未確認**：復元ドリル自体はローカルDocker Composeで実地確認済みだが、Cloud SQLの自動バックアップ/PITRの動作確認・RTO/RPO目標の確定・チームでの復旧訓練は未実施（M3ゲート対象）
 - **MCP `2026-07-28` RCへの実対応は上流SDK待ち**：`@modelcontextprotocol/sdk`の現行最新公開版（1.29.0）自体がまだRCに対応していないため、対応バージョンが公開されたら`test/protocol-version-compat.test.ts`の期待値を更新して再検証する（M3ゲート対象）
-- **ライセンス方針・セキュリティ報告窓口の確定**：`LICENSE`/`SECURITY.md`は暫定既定値。外部提出前に実値へ更新すること
+- **セキュリティ報告窓口の確定**：`LICENSE`はApache-2.0へ統一済み。`SECURITY.md`は外部提出前に実在する監視可能な窓口へ更新すること
 - **M2/M3の客観ゲート**：レジストリ公開・外販βの前提条件。[`docs/registry-readiness-checklist.md`](docs/registry-readiness-checklist.md)のC〜Eを参照
 - **M2 Phase 1で対象外にした範囲**：T2P書類④〜⑩の生成、期限イベント（4か月/5か月/6か月/closeout）、採否理由チェーン、手数料③、freee連携、2026-10-01要領改正の追従実戦、A5（派遣先台帳雛形）、A2/A3/A10テンプレートの社労士レビュー。詳細は[`docs/registry-readiness-checklist.md`](docs/registry-readiness-checklist.md)C節参照
 - **M2 Phase 2で対象外にした範囲**：⑩直接雇用切替同意書（テンプレート不在・実務フローv1に記載なし）、期限イベント（4か月/5か月/6か月/closeout）、手数料③の計算ロジック精緻化（`fee_records`へのposting自体は実装済み）、`invoice.create_draft`・freee連携、A5（派遣先台帳雛形）、2026-10-01要領改正の追従実戦、④〜⑨テンプレートの社労士レビュー。詳細は[`docs/registry-readiness-checklist.md`](docs/registry-readiness-checklist.md)C節参照

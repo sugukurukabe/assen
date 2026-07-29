@@ -102,6 +102,18 @@ const envSchema = z.object({
   // Destination for monthly board / management review posts (#95 equivalent). Monthly reports post here, not to arbitrary channels
   // Tujuan posting laporan bulanan / review manajemen (setara #95). Laporan bulanan diposting ke sini, bukan channel bebas
   SLACK_BOARD_CHANNEL_ID: z.string().optional().default(""),
+  // freee読み取り口（Slack dynamic options向け）。OAuth refresh tokenはローテーションされるためSecret Managerで保持する
+  // freee read adapters (for Slack dynamic options). OAuth refresh tokens rotate, so they are stored in Secret Manager
+  // Adapter baca freee (untuk dynamic options Slack). Refresh token OAuth berotasi, sehingga disimpan di Secret Manager
+  FREEE_CLIENT_ID: z.string().optional().default(""),
+  FREEE_CLIENT_SECRET: z.string().optional().default(""),
+  FREEE_COMPANY_ID: z.string().optional().default(""),
+  FREEE_TOKEN_SECRET_NAME: z.string().optional().default(""),
+  FREEE_STAFF_ID_MAPPING_SECRET_NAME: z.string().optional().default(""),
+  FREEE_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(300),
+  FREEE_HR_BASE_URL: z.string().url().default("https://api.freee.co.jp/hr/api/v1"),
+  FREEE_ACCOUNTING_BASE_URL: z.string().url().default("https://api.freee.co.jp/api/1"),
+  FREEE_TOKEN_URL: z.string().url().default("https://accounts.secure.freee.co.jp/public_api/token"),
   // トークン交換層（Google IDトークン→Assen audience JWT、自社MVPゲート・docs/registry-readiness-checklist.md G節）。
   // GOOGLE_OAUTH_CLIENT_IDが未設定なら機能全体を無効化する（/oauth/token-exchange・/oauth/jwks.jsonは404を返す）
   // Token-exchange layer (Google ID token -> Assen audience JWT; internal-MVP gate, checklist section G).
@@ -176,7 +188,31 @@ export function assertProductionSafety(env: AssenEnv): void {
       "トークン交換を有効にする場合はTOKEN_EXCHANGE_SIGNING_PRIVATE_KEY_JWKが必須です（未設定だと再起動毎に鍵が変わり、発行済みトークンが全て無効化されます） / TOKEN_EXCHANGE_SIGNING_PRIVATE_KEY_JWK is required whenever token exchange is enabled (otherwise the key changes on every restart, invalidating all previously issued tokens)",
     );
   }
+  // freee設定は起動時必須にしない。未設定でも既存28ツールのうちDB系はClaudeから使える。
+  // freee-backed tools fail at call time via assertFreeeConfigured() instead of blocking server boot.
+  // Konfigurasi freee tidak wajib saat startup. Tool berbasis DB tetap bisa dipakai Claude; tool freee gagal saat dipanggil.
   if (violations.length > 0) {
     throw new Error(`本番起動を拒否しました / Refused to start in production: ${violations.join(" / ")}`);
+  }
+}
+
+/**
+ * staff_list / partner_list 呼び出し時にfreee接続設定が揃っているかを検証する。
+ * Validates freee connection settings when staff_list / partner_list are called.
+ * Memvalidasi setelan koneksi freee saat staff_list / partner_list dipanggil.
+ */
+export function assertFreeeConfigured(env: AssenEnv = loadEnv()): void {
+  const required: Array<[keyof AssenEnv, string]> = [
+    ["FREEE_CLIENT_ID", env.FREEE_CLIENT_ID],
+    ["FREEE_CLIENT_SECRET", env.FREEE_CLIENT_SECRET],
+    ["FREEE_COMPANY_ID", env.FREEE_COMPANY_ID],
+    ["FREEE_TOKEN_SECRET_NAME", env.FREEE_TOKEN_SECRET_NAME],
+    ["FREEE_STAFF_ID_MAPPING_SECRET_NAME", env.FREEE_STAFF_ID_MAPPING_SECRET_NAME],
+  ];
+  const missing = required.filter(([, value]) => !value).map(([key]) => key);
+  if (missing.length > 0) {
+    throw new Error(
+      `freee読み取りツールの設定が不足しています（${missing.join(",")}）。Secret ManagerとCloud Run envを確認してください / freee read-tool configuration is incomplete (${missing.join(",")}). Check Secret Manager and Cloud Run env`,
+    );
   }
 }

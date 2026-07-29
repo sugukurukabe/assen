@@ -6,7 +6,7 @@
 import { Readable } from "node:stream";
 import type { IncomingMessage } from "node:http";
 import { describe, expect, it } from "vitest";
-import { assertProductionSafety, type AssenEnv } from "../src/lib/env.js";
+import { assertFreeeConfigured, assertProductionSafety, type AssenEnv } from "../src/lib/env.js";
 import { readJsonBody } from "../src/lib/http-body.js";
 import { PayloadTooLargeError } from "../src/lib/errors.js";
 
@@ -41,6 +41,15 @@ function baseEnv(overrides: Partial<AssenEnv>): AssenEnv {
     SLACK_KPI_CHANNEL_ID: "",
     SLACK_FINANCE_CHANNEL_ID: "",
     SLACK_BOARD_CHANNEL_ID: "",
+    FREEE_CLIENT_ID: "",
+    FREEE_CLIENT_SECRET: "",
+    FREEE_COMPANY_ID: "",
+    FREEE_TOKEN_SECRET_NAME: "",
+    FREEE_STAFF_ID_MAPPING_SECRET_NAME: "",
+    FREEE_CACHE_TTL_SECONDS: 300,
+    FREEE_HR_BASE_URL: "https://api.freee.co.jp/hr/api/v1",
+    FREEE_ACCOUNTING_BASE_URL: "https://api.freee.co.jp/api/1",
+    FREEE_TOKEN_URL: "https://accounts.secure.freee.co.jp/public_api/token",
     GOOGLE_OAUTH_CLIENT_ID: "",
     GOOGLE_OAUTH_CLIENT_SECRET: "",
     TOKEN_EXCHANGE_ALLOWLIST_JSON: "[]",
@@ -94,6 +103,33 @@ describe("assertProductionSafety", () => {
     expect(() =>
       assertProductionSafety(baseEnv({ NODE_ENV: "production", AUTH_MODE: "oauth", PII_ENCRYPTION_KEY: "a".repeat(44) })),
     ).toThrow(/OAUTH_ISSUER/);
+  });
+
+  it("production起動はfreee未設定でも通すが、呼び出し時検証は不足キーを拒否する / production boot allows missing freee config, but call-time check rejects missing keys", () => {
+    expect(() =>
+      assertProductionSafety(
+        baseEnv({
+          NODE_ENV: "production",
+          AUTH_MODE: "oauth",
+          PII_ENCRYPTION_KEY: "a".repeat(44),
+          OAUTH_ISSUER: "https://idp.example.com",
+          OAUTH_AUDIENCE: "assen",
+          OAUTH_JWKS_URI: "https://idp.example.com/.well-known/jwks.json",
+        }),
+      ),
+    ).not.toThrow();
+    expect(() => assertFreeeConfigured(baseEnv({}))).toThrow(/FREEE_CLIENT_ID/);
+    expect(() =>
+      assertFreeeConfigured(
+        baseEnv({
+          FREEE_CLIENT_ID: "id",
+          FREEE_CLIENT_SECRET: "secret",
+          FREEE_COMPANY_ID: "123",
+          FREEE_TOKEN_SECRET_NAME: "projects/p/secrets/token",
+          FREEE_STAFF_ID_MAPPING_SECRET_NAME: "projects/p/secrets/map",
+        }),
+      ),
+    ).not.toThrow();
   });
 });
 
