@@ -130,14 +130,13 @@ async function main(): Promise<void> {
     });
 
     server.listen(REDIRECT_PORT, () => {
-      exec(`open "${authUrl.toString()}"`, (err) => {
-        if (err) {
-          console.log("ブラウザを自動で開けませんでした。次のURLを手動で開いてください:");
-          console.log("Could not open browser automatically. Please open this URL manually:");
-          console.log(authUrl.toString());
-        }
-      });
-      console.log("ブラウザでGoogle Workspaceにログインしてください... / Please sign in with Google Workspace in your browser...");
+      // `open`が既存タブや別プロファイルへ流れて認可画面に到達しない場合があるため、URLは常に表示する
+      // `open` can land on an existing tab or another browser profile and miss the consent screen, so always print the URL
+      // `open` bisa membuka tab lama atau profil browser lain sehingga layar izin terlewat, jadi selalu cetak URL-nya
+      console.log("次のURLをブラウザで開いてGoogle Workspaceにログインしてください:");
+      console.log("Open this URL in your browser and sign in with Google Workspace:");
+      console.log(authUrl.toString());
+      exec(`open "${authUrl.toString()}"`);
     });
 
     setTimeout(() => {
