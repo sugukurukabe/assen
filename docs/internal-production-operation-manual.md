@@ -132,6 +132,7 @@ Claudeに依頼:
 AssenでStage 0問い合わせを記録してください。
 氏名: ...
 経路: sns_application
+流入元タグ: meta_lead_form
 DM回答:
 - 在留資格:
 - 在留期限:
@@ -146,6 +147,10 @@ DM回答:
 - `inquiry_record`
 - 不足があれば`inquiry_update`
 - セット完備後に`inquiry_promote`
+
+**広告経由なら流入元タグを必ず付ける。** 経路6択は媒体を区別しないため、Metaリードフォームのリードも
+自然流入のSNS応募も `sns_application` に入ってしまう。`sourceTag`（`meta_lead_form` 等）を付けないと
+`kpi_weekly_summary` で広告のCPLと申込率が出せない。詳細は[`docs/paid-placement-workflow.md`](paid-placement-workflow.md)。
 
 English: Record Stage 0 first, update missing answers, then promote only after the formal application set is complete.
 

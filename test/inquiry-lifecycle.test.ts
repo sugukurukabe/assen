@@ -9,6 +9,7 @@ import type { AuthenticatedPrincipal } from "../src/lib/auth.js";
 import { acquireTenantScopedDb } from "../src/db/client.js";
 import {
   closeStaleInquiries,
+  normalizeSourceTag,
   promoteInquiry,
   recordInquiry,
   updateInquiry,
@@ -123,6 +124,52 @@ describe("inquiry two-stage intake", () => {
 
     const [row] = await scoped.db.select().from(inquiries).where(eq(inquiries.id, recorded.inquiryId));
     expect(row?.status).toBe("promoted");
+  });
+
+  it("normalizes the source tag and rejects ungroupable values", () => {
+    expect(normalizeSourceTag("  Meta Lead Form ")).toBe("meta_lead_form");
+    expect(normalizeSourceTag("ig_organic")).toBe("ig_organic");
+    // 全角・記号は集計キーとして割れるので受け付けない / Full-width and stray symbols would fragment the key
+    expect(() => normalizeSourceTag("メタ広告")).toThrow(/sourceTag/);
+    expect(() => normalizeSourceTag("meta/lead")).toThrow(/sourceTag/);
+    expect(() => normalizeSourceTag("a".repeat(65))).toThrow(/sourceTag/);
+  });
+
+  it("keeps the source tag through record and update so ad traffic stays separable", async () => {
+    const recorded = await recordInquiry(scoped.db, {
+      tenantId,
+      displayName: "META LEAD",
+      channel: "sns_application",
+      sourceTag: "Meta Lead Form",
+      sourceDetail: { campaign: "2026-08_lombok_ja" },
+    });
+    expect(recorded.sourceTag).toBe("meta_lead_form");
+
+    const [afterRecord] = await scoped.db
+      .select()
+      .from(inquiries)
+      .where(eq(inquiries.id, recorded.inquiryId));
+    expect(afterRecord?.extras).toMatchObject({
+      sourceTag: "meta_lead_form",
+      sourceDetail: { campaign: "2026-08_lombok_ja" },
+    });
+
+    // 後から広告セットが判明する場合があるので、既存キーを消さずに足せること
+    // Ad-set details often arrive later, so merging must not drop existing keys
+    const updated = await updateInquiry(scoped.db, {
+      inquiryId: recorded.inquiryId,
+      sourceDetail: { adSet: "persona_a" },
+    });
+    expect(updated.sourceTag).toBe("meta_lead_form");
+
+    const [afterUpdate] = await scoped.db
+      .select()
+      .from(inquiries)
+      .where(eq(inquiries.id, recorded.inquiryId));
+    expect(afterUpdate?.extras).toMatchObject({
+      sourceTag: "meta_lead_form",
+      sourceDetail: { campaign: "2026-08_lombok_ja", adSet: "persona_a" },
+    });
   });
 
   it("closeStaleInquiries closes set_sent without complete set after 7 days", async () => {

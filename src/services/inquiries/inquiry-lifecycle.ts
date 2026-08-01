@@ -33,6 +33,68 @@ export interface DmAnswers {
 
 const AUTO_CLOSE_DAYS = 7;
 
+/**
+ * 流入元タグ。経路enum（6値）より細かい単位で広告を切り分けるために使う
+ * Source tag: separates ad traffic at a finer grain than the 6-value channel enum
+ * Tag sumber: memisahkan trafik iklan lebih rinci daripada enum channel (6 nilai)
+ */
+export const SOURCE_TAG_PATTERN = /^[a-z0-9][a-z0-9_.:-]{0,63}$/;
+const SOURCE_DETAIL_MAX_KEYS = 8;
+const SOURCE_DETAIL_MAX_VALUE_LENGTH = 200;
+
+export interface InquiryExtras {
+  sourceTag?: string;
+  sourceDetail?: Record<string, string>;
+}
+
+/**
+ * 集計キーにするため小文字・記号のみへ正規化する。表記ゆれで経路が分裂すると分母が数えられなくなる
+ * Normalizes to a groupable key; unnormalized variants would fragment the funnel denominator
+ * Menormalkan menjadi kunci agregasi; variasi penulisan akan memecah penyebut funnel
+ */
+export function normalizeSourceTag(raw: string): string {
+  const normalized = raw.trim().toLowerCase().replace(/\s+/g, "_");
+  if (!SOURCE_TAG_PATTERN.test(normalized)) {
+    throw new UserInputError(
+      `sourceTag "${raw}" は使えません / sourceTag "${raw}" is not usable / sourceTag "${raw}" tidak dapat dipakai`,
+      "英小文字・数字と _ . : - のみ、64文字以内にしてください（例: meta_lead_form） / Use lowercase letters, digits and _ . : - only, max 64 chars (e.g. meta_lead_form)",
+    );
+  }
+  return normalized;
+}
+
+function buildExtras(
+  existing: InquiryExtras | null | undefined,
+  input: { sourceTag?: string; sourceDetail?: Record<string, string> },
+): InquiryExtras | null {
+  const next: InquiryExtras = { ...(existing ?? {}) };
+
+  if (input.sourceTag !== undefined) {
+    next.sourceTag = normalizeSourceTag(input.sourceTag);
+  }
+
+  if (input.sourceDetail !== undefined) {
+    const entries = Object.entries(input.sourceDetail);
+    if (entries.length > SOURCE_DETAIL_MAX_KEYS) {
+      throw new UserInputError(
+        `sourceDetailのキーは${SOURCE_DETAIL_MAX_KEYS}個までです / sourceDetail accepts at most ${SOURCE_DETAIL_MAX_KEYS} keys / sourceDetail menerima maksimal ${SOURCE_DETAIL_MAX_KEYS} kunci`,
+        "広告セットID・キャンペーン名など、後で数えたいものだけ残してください / Keep only the values you will count later",
+      );
+    }
+    for (const [key, value] of entries) {
+      if (value.length > SOURCE_DETAIL_MAX_VALUE_LENGTH) {
+        throw new UserInputError(
+          `sourceDetail.${key} が長すぎます / sourceDetail.${key} is too long / sourceDetail.${key} terlalu panjang`,
+          `${SOURCE_DETAIL_MAX_VALUE_LENGTH}文字以内にしてください / Keep it within ${SOURCE_DETAIL_MAX_VALUE_LENGTH} characters`,
+        );
+      }
+    }
+    next.sourceDetail = { ...(existing?.sourceDetail ?? {}), ...input.sourceDetail };
+  }
+
+  return Object.keys(next).length === 0 ? null : next;
+}
+
 function isDmComplete(answers: DmAnswers): boolean {
   return Boolean(
     answers.visaStatus?.trim() &&
@@ -66,11 +128,14 @@ export interface RecordInquiryInput {
   channel: ApplicationChannel;
   dmAnswers?: DmAnswers;
   notes?: string;
+  sourceTag?: string;
+  sourceDetail?: Record<string, string>;
 }
 
 export async function recordInquiry(db: Db, input: RecordInquiryInput) {
   const dmAnswers = input.dmAnswers ?? {};
   const dmComplete = isDmComplete(dmAnswers);
+  const extras = buildExtras(null, input);
   const id = randomUUID();
   const now = new Date();
 
@@ -84,11 +149,13 @@ export async function recordInquiry(db: Db, input: RecordInquiryInput) {
     dmComplete,
     lastContactAt: now,
     notes: input.notes,
+    extras,
   });
 
   return {
     inquiryId: id,
     dmComplete,
+    sourceTag: extras?.sourceTag,
     status: "open" as const,
     nextActions: dmComplete
       ? ["正式申込セットを送付し、inquiry.updateでsetSent=trueにしてください / Send the formal application set and call inquiry.update with setSent=true"]
@@ -108,6 +175,8 @@ export interface UpdateInquiryInput {
   wantsT2p?: boolean;
   setReceivedAt?: string;
   notes?: string;
+  sourceTag?: string;
+  sourceDetail?: Record<string, string>;
   autoCloseStale?: boolean;
 }
 
@@ -131,6 +200,7 @@ export async function updateInquiry(db: Db, input: UpdateInquiryInput) {
     ...(input.dmAnswers ?? {}),
   };
   const dmComplete = isDmComplete(dmAnswers);
+  const extras = buildExtras(existing.extras as InquiryExtras | null, input);
   const now = new Date();
 
   let status = existing.status;
@@ -157,6 +227,7 @@ export async function updateInquiry(db: Db, input: UpdateInquiryInput) {
     setReceivedAt: input.setReceivedAt ?? existing.setReceivedAt,
     lastContactAt: now,
     notes: input.notes ?? existing.notes,
+    extras,
     status,
     updatedAt: now,
   };
@@ -194,6 +265,7 @@ export async function updateInquiry(db: Db, input: UpdateInquiryInput) {
     status: next.status,
     dmComplete,
     applicationSetComplete,
+    sourceTag: extras?.sourceTag,
     autoClosed: false,
     nextActions: applicationSetComplete
       ? ["inquiry.promoteで候補者（帳簿②）へ昇格してください / Promote to candidate (Ledger #2) via inquiry.promote"]

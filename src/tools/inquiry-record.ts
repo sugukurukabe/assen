@@ -29,6 +29,18 @@ const inputSchema = {
     .describe("応募経路（6択。Zキャリアは求人側のため含まない） / Application channel (6 options; Z-Career is on the job side) / Jalur lamaran (6 opsi)"),
   dmAnswers: dmAnswersSchema.optional().describe("DM5問回答 / DM 5-question answers / Jawaban 5 pertanyaan DM"),
   notes: z.string().optional().describe("メモ / Notes / Catatan"),
+  sourceTag: z
+    .string()
+    .optional()
+    .describe(
+      "流入元タグ。経路6択より細かく広告を切り分ける（例: meta_lead_form / meta_dm / ig_organic / referral_event）。英小文字・数字と _ . : - のみ64文字以内。週次KPIの経路別内訳はこのタグで割る / Source tag for finer ad attribution than the 6 channels (e.g. meta_lead_form). Lowercase, digits and _ . : - only, max 64 chars. Weekly KPI splits by this tag / Tag sumber untuk atribusi iklan lebih rinci daripada 6 channel (mis. meta_lead_form)",
+    ),
+  sourceDetail: z
+    .record(z.string(), z.string())
+    .optional()
+    .describe(
+      "広告セットID・キャンペーン名など、後で数えたい内訳（最大8キー・各200文字）。個人情報を入れない / Campaign or ad-set breakdown to count later (max 8 keys, 200 chars each). No personal data / Rincian kampanye atau ad-set (maks 8 kunci, 200 karakter). Jangan masukkan data pribadi",
+    ),
 };
 
 export function registerInquiryRecord(server: McpServer, context: ServiceContext): void {
@@ -55,6 +67,8 @@ export function registerInquiryRecord(server: McpServer, context: ServiceContext
           channel: args.channel,
           dmAnswers: args.dmAnswers,
           notes: args.notes,
+          sourceTag: args.sourceTag,
+          sourceDetail: args.sourceDetail,
         });
         return toToolResult({
           operationId: randomUUID(),
@@ -62,6 +76,7 @@ export function registerInquiryRecord(server: McpServer, context: ServiceContext
           subjectVersion: 1,
           status: result.status,
           dmComplete: result.dmComplete,
+          sourceTag: result.sourceTag,
           missingFields: [],
           findings: [],
           evidenceRefs: [],

@@ -30,6 +30,18 @@ export interface WeeklyKpiSummary {
   feeAmountInclTax: number;
   byChannel: Record<string, number>;
   inquiryByChannel: Record<string, number>;
+  /** 流入元タグ別の問い合わせ側ファネル。広告のCPLと申込率をタグ単位で見るために使う / Inquiry-side funnel per source tag, for per-tag CPL and application rate / Funnel sisi inquiry per tag sumber */
+  inquiryBySourceTag: Record<
+    string,
+    {
+      inquiries: number;
+      applicationSetsSent: number;
+      applicationSetsReceived: number;
+      candidates: number;
+      inquiryToSetSent: number | null;
+      setReceivedToCandidate: number | null;
+    }
+  >;
   byBusinessFlag: Record<string, number>;
   channelFunnels: Record<
     string,
@@ -171,6 +183,33 @@ export async function computeWeeklyKpi(db: Db, input: WeeklyKpiInput = {}): Prom
     inquiryByChannel[row.channel] = row.count;
   }
 
+  // 流入元タグは経路enumより細かい。タグ未設定は untagged にまとめる
+  // Source tags are finer than the channel enum; untagged rows collapse into "untagged"
+  // Tag sumber lebih rinci daripada enum channel; baris tanpa tag menjadi "untagged"
+  const sourceTagRows = await db
+    .select({
+      sourceTag: sql<string>`coalesce(${inquiries.extras} ->> 'sourceTag', 'untagged')`,
+      inquiries: sql<number>`count(*)::int`,
+      applicationSetsSent: sql<number>`count(${inquiries.setSentAt})::int`,
+      applicationSetsReceived: sql<number>`count(${inquiries.setReceivedAt})::int`,
+      candidates: sql<number>`count(${inquiries.promotedJobSeekerId})::int`,
+    })
+    .from(inquiries)
+    .where(and(gte(inquiries.createdAt, new Date(`${start}T00:00:00.000Z`)), lt(inquiries.createdAt, new Date(`${addDays(end, 1)}T00:00:00.000Z`))))
+    .groupBy(sql`coalesce(${inquiries.extras} ->> 'sourceTag', 'untagged')`);
+
+  const inquiryBySourceTag: WeeklyKpiSummary["inquiryBySourceTag"] = {};
+  for (const row of sourceTagRows) {
+    inquiryBySourceTag[row.sourceTag] = {
+      inquiries: row.inquiries,
+      applicationSetsSent: row.applicationSetsSent,
+      applicationSetsReceived: row.applicationSetsReceived,
+      candidates: row.candidates,
+      inquiryToSetSent: ratio(row.applicationSetsSent, row.inquiries),
+      setReceivedToCandidate: ratio(row.candidates, row.applicationSetsReceived),
+    };
+  }
+
   const businessRows = await db
     .select({
       businessFlag: jobSeekers.businessFlag,
@@ -288,6 +327,7 @@ export async function computeWeeklyKpi(db: Db, input: WeeklyKpiInput = {}): Prom
     feeAmountInclTax: Number(feeRow?.total ?? 0),
     byChannel,
     inquiryByChannel,
+    inquiryBySourceTag,
     byBusinessFlag,
     channelFunnels,
     revenueByCategory,
@@ -313,6 +353,7 @@ export function formatWeeklyKpiSlackText(summary: WeeklyKpiSummary): string {
     `・成約: ${summary.placements}（手数料合計 ¥${summary.feeAmountInclTax.toLocaleString("ja-JP")}）`,
     `・成果区分別収益: ${JSON.stringify(summary.revenueByCategory)}`,
     `・経路別ファネル: ${JSON.stringify(summary.channelFunnels)}`,
+    `・流入元タグ別: ${JSON.stringify(summary.inquiryBySourceTag)}`,
     `・上流レシオ 問い合わせ→送付: ${summary.ratios.inquiryToSetSent ?? "—"} / 送付→受領: ${summary.ratios.setSentToReceived ?? "—"} / 受領→候補者: ${summary.ratios.setReceivedToCandidate ?? "—"}`,
     `・レシオ 推薦→面接: ${summary.ratios.referralToInterview ?? "—"} / 面接→内定: ${summary.ratios.interviewToOffer ?? "—"} / 内定→成約: ${summary.ratios.offerToPlacement ?? "—"}`,
   ].join("\n");
