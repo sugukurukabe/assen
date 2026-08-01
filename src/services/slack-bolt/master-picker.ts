@@ -7,6 +7,22 @@ import type { App } from "@slack/bolt";
 import { logMessage } from "../../lib/logger.js";
 import type { AssenMcpClient, ListToolName } from "./assen-mcp-client.js";
 
+type SlackChatClient = {
+  chat: {
+    postMessage: (args: {
+      channel: string;
+      text: string;
+      blocks?: unknown[];
+    }) => Promise<{ channel?: string; ts?: string }>;
+    update: (args: {
+      channel: string;
+      ts: string;
+      text: string;
+      blocks?: unknown[];
+    }) => Promise<unknown>;
+  };
+};
+
 const FUNCTION_CALLBACK_ID = "pick_master_values";
 const OPEN_PICKER_ACTION_ID = "open_master_picker";
 const VIEW_CALLBACK_ID = "master_picker_submit";
@@ -49,6 +65,18 @@ interface PickerFlags {
   askJobSeeker: boolean;
   title: string;
   functionExecutionId: string;
+  assignee: string;
+  messageChannel: string;
+  messageTs: string;
+}
+
+interface SelectionOutputs {
+  staff_value: string;
+  staff_label: string;
+  partner_value: string;
+  partner_label: string;
+  job_seeker_value: string;
+  job_seeker_label: string;
 }
 
 interface OptionBlockValue {
@@ -79,6 +107,50 @@ function truncateLabel(label: string): string {
   return `${label.slice(0, SLACK_LABEL_MAX - 1)}…`;
 }
 
+/**
+ * Slackのuser/channel入力をID文字列に正規化する
+ * Normalize Slack user/channel inputs to an ID string
+ * Menormalisasi input user/channel Slack menjadi string ID
+ */
+export function extractSlackId(raw: unknown): string {
+  if (typeof raw === "string" && raw.trim().length > 0) {
+    return raw.trim();
+  }
+  if (typeof raw === "object" && raw !== null) {
+    const record = raw as Record<string, unknown>;
+    for (const key of ["id", "user_id", "channel_id"] as const) {
+      const value = record[key];
+      if (typeof value === "string" && value.trim().length > 0) {
+        return value.trim();
+      }
+    }
+  }
+  return "";
+}
+
+/**
+ * 選択結果の表示文を組み立てる
+ * Build the human-readable selection summary
+ * Menyusun ringkasan pilihan yang terbaca manusia
+ */
+export function buildSelectionSummary(
+  title: string,
+  outputs: SelectionOutputs,
+  flags: Pick<PickerFlags, "askStaff" | "askPartner" | "askJobSeeker">,
+): string {
+  const lines: string[] = [`*${title} — 選択完了*`];
+  if (flags.askStaff) {
+    lines.push(`• スタッフ: ${outputs.staff_label || "（未選択）"}`);
+  }
+  if (flags.askPartner) {
+    lines.push(`• 取引先: ${outputs.partner_label || "（未選択）"}`);
+  }
+  if (flags.askJobSeeker) {
+    lines.push(`• 求職者: ${outputs.job_seeker_label || "（未選択）"}`);
+  }
+  return lines.join("\n");
+}
+
 function parsePrivateMetadata(raw: string | undefined): PickerFlags {
   if (!raw) {
     throw new Error("private_metadata is missing");
@@ -91,6 +163,9 @@ function parsePrivateMetadata(raw: string | undefined): PickerFlags {
     title: typeof parsed.title === "string" && parsed.title.length > 0 ? parsed.title : "Assenマスタ選択",
     functionExecutionId:
       typeof parsed.functionExecutionId === "string" ? parsed.functionExecutionId : "",
+    assignee: typeof parsed.assignee === "string" ? parsed.assignee : "",
+    messageChannel: typeof parsed.messageChannel === "string" ? parsed.messageChannel : "",
+    messageTs: typeof parsed.messageTs === "string" ? parsed.messageTs : "",
   };
 }
 
@@ -183,28 +258,132 @@ function actionIdToToolName(actionId: string): ListToolName | undefined {
   return undefined;
 }
 
+function slackErrorCode(error: unknown): string | undefined {
+  if (typeof error === "object" && error !== null && "data" in error) {
+    const data = (error as { data?: { error?: unknown } }).data;
+    if (typeof data?.error === "string") {
+      return data.error;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * チャンネル投稿を試し、未参加などならDMへフォールバックする
+ * Try posting to a channel; fall back to DM if the bot is not in the channel
+ * Coba kirim ke channel; fallback ke DM jika bot belum di channel
+ */
+async function postPickerPrompt(
+  client: SlackChatClient,
+  args: {
+    assignee: string;
+    notifyChannel: string;
+    title: string;
+    flagsWithoutMessage: Omit<PickerFlags, "messageChannel" | "messageTs">;
+  },
+): Promise<{ channel: string; ts: string; usedChannel: boolean }> {
+  const flagsForValue = {
+    ...args.flagsWithoutMessage,
+    messageChannel: "",
+    messageTs: "",
+  };
+  const intro =
+    args.notifyChannel.length > 0
+      ? `<@${args.assignee}> *${args.title}*\n下のボタンからAssenの候補を選んでください。`
+      : `*${args.title}*\nスタッフ・取引先・求職者の候補をAssenから検索して選びます。`;
+  const blocks: ModalBlock[] = [
+    {
+      type: "section",
+      text: { type: "mrkdwn", text: intro },
+    },
+    {
+      type: "actions",
+      elements: [
+        {
+          type: "button",
+          action_id: OPEN_PICKER_ACTION_ID,
+          text: { type: "plain_text", text: "候補を選ぶ" },
+          value: JSON.stringify(flagsForValue),
+          style: "primary",
+        },
+      ],
+    },
+  ];
+
+  const tryPost = async (channel: string) => {
+    return client.chat.postMessage({
+      channel,
+      text: `${args.title}：下のボタンから候補を選んでください`,
+      blocks,
+    });
+  };
+
+  if (args.notifyChannel.length > 0) {
+    try {
+      const posted = await tryPost(args.notifyChannel);
+      if (!posted.channel || !posted.ts) {
+        throw new Error("chat.postMessage returned without channel/ts");
+      }
+      return { channel: posted.channel, ts: posted.ts, usedChannel: true };
+    } catch (error) {
+      const code = slackErrorCode(error);
+      logMessage("warning", "notify_channelへの投稿に失敗したためDMへフォールバックします / channel post failed; falling back to DM", {
+        notifyChannel: args.notifyChannel,
+        code,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  const posted = await tryPost(args.assignee);
+  if (!posted.channel || !posted.ts) {
+    throw new Error("chat.postMessage to assignee returned without channel/ts");
+  }
+  return { channel: posted.channel, ts: posted.ts, usedChannel: false };
+}
+
+async function publishSelectionResult(
+  client: SlackChatClient,
+  flags: PickerFlags,
+  outputs: SelectionOutputs,
+): Promise<void> {
+  const summary = buildSelectionSummary(flags.title, outputs, flags);
+  if (flags.messageChannel && flags.messageTs) {
+    await client.chat.update({
+      channel: flags.messageChannel,
+      ts: flags.messageTs,
+      text: summary.replace(/\*/g, ""),
+      blocks: [
+        {
+          type: "section",
+          text: { type: "mrkdwn", text: summary },
+        },
+      ],
+    });
+    return;
+  }
+
+  const fallbackChannel = flags.assignee || flags.messageChannel;
+  if (!fallbackChannel) {
+    return;
+  }
+  await client.chat.postMessage({
+    channel: fallbackChannel,
+    text: summary.replace(/\*/g, ""),
+    blocks: [
+      {
+        type: "section",
+        text: { type: "mrkdwn", text: summary },
+      },
+    ],
+  });
+}
+
 /**
  * pick_master_valuesカスタムステップとモーダル／optionsハンドラを登録する
  * Registers the pick_master_values custom step and its modal/options handlers
  * Mendaftarkan custom step pick_master_values serta handler modal/options-nya
  */
-function extractAssignee(inputs: Record<string, unknown>): string {
-  const raw = inputs.assignee;
-  if (typeof raw === "string" && raw.trim().length > 0) {
-    return raw.trim();
-  }
-  if (typeof raw === "object" && raw !== null) {
-    const record = raw as Record<string, unknown>;
-    if (typeof record.id === "string" && record.id.trim().length > 0) {
-      return record.id.trim();
-    }
-    if (typeof record.user_id === "string" && record.user_id.trim().length > 0) {
-      return record.user_id.trim();
-    }
-  }
-  return "";
-}
-
 export function registerMasterPicker(app: App, mcpClient: AssenMcpClient): void {
   app.function(FUNCTION_CALLBACK_ID, async ({ client, inputs, fail, body }) => {
     try {
@@ -213,7 +392,8 @@ export function registerMasterPicker(app: App, mcpClient: AssenMcpClient): void 
         assigneeType: typeof inputs?.assignee,
       });
 
-      const assignee = extractAssignee((inputs ?? {}) as Record<string, unknown>);
+      const inputRecord = (inputs ?? {}) as Record<string, unknown>;
+      const assignee = extractSlackId(inputRecord.assignee);
       if (!assignee) {
         logMessage("warning", "assigneeが空のためfailします / failing because assignee is empty", {
           assigneeRaw: inputs?.assignee,
@@ -222,6 +402,7 @@ export function registerMasterPicker(app: App, mcpClient: AssenMcpClient): void 
         return;
       }
 
+      const notifyChannel = extractSlackId(inputRecord.notify_channel);
       const askStaff = asBoolean(inputs.ask_staff, true);
       const askPartner = asBoolean(inputs.ask_partner, true);
       const askJobSeeker = asBoolean(inputs.ask_job_seeker, false);
@@ -241,23 +422,43 @@ export function registerMasterPicker(app: App, mcpClient: AssenMcpClient): void 
           ? (body as { event: { function_execution_id: string } }).event.function_execution_id
           : "";
 
-      const flags: PickerFlags = {
+      const flagsWithoutMessage: Omit<PickerFlags, "messageChannel" | "messageTs"> = {
         askStaff,
         askPartner,
         askJobSeeker,
         title,
         functionExecutionId,
+        assignee,
       };
 
-      const posted = await client.chat.postMessage({
-        channel: assignee,
+      const posted = await postPickerPrompt(client, {
+        assignee,
+        notifyChannel,
+        title,
+        flagsWithoutMessage,
+      });
+
+      // ボタンvalueにmessageChannel/tsを入れ直し、確定後のchat.updateで使えるようにする
+      // Rewrite button value with messageChannel/ts so chat.update can run after submit
+      // Tulis ulang value tombol dengan messageChannel/ts agar chat.update bisa jalan setelah submit
+      const flags: PickerFlags = {
+        ...flagsWithoutMessage,
+        messageChannel: posted.channel,
+        messageTs: posted.ts,
+      };
+      await client.chat.update({
+        channel: posted.channel,
+        ts: posted.ts,
         text: `${title}：下のボタンから候補を選んでください`,
         blocks: [
           {
             type: "section",
             text: {
               type: "mrkdwn",
-              text: `*${title}*\nスタッフ・取引先・求職者の候補をAssenから検索して選びます。`,
+              text:
+                notifyChannel.length > 0 && posted.usedChannel
+                  ? `<@${assignee}> *${title}*\n下のボタンからAssenの候補を選んでください。`
+                  : `*${title}*\nスタッフ・取引先・求職者の候補をAssenから検索して選びます。`,
             },
           },
           {
@@ -274,10 +475,13 @@ export function registerMasterPicker(app: App, mcpClient: AssenMcpClient): void 
           },
         ],
       });
+
       logMessage("info", "候補選択メッセージを送信しました / sent master picker message", {
         assignee,
+        notifyChannel: notifyChannel || undefined,
         channel: posted.channel,
         ts: posted.ts,
+        usedChannel: posted.usedChannel,
         functionExecutionId,
       });
     } catch (error) {
@@ -307,13 +511,6 @@ export function registerMasterPicker(app: App, mcpClient: AssenMcpClient): void 
       interactivity.interactivity_pointer.length > 0
         ? interactivity.interactivity_pointer
         : undefined);
-    logMessage("info", "open_master_pickerアクションを受信 / received open_master_picker action", {
-      bodyType: typeof bodyRecord.type === "string" ? bodyRecord.type : undefined,
-      bodyKeys: Object.keys(bodyRecord).slice(0, 40),
-      hasTriggerId: Boolean(triggerId),
-      hasFunctionData: Boolean(bodyRecord.function_data),
-      rawHasTriggerIdKey: Object.prototype.hasOwnProperty.call(bodyRecord, "trigger_id"),
-    });
     await ack();
     try {
       if (!triggerId) {
@@ -327,6 +524,25 @@ export function registerMasterPicker(app: App, mcpClient: AssenMcpClient): void 
           const executionId = (functionData as { execution_id?: unknown }).execution_id;
           if (typeof executionId === "string" && executionId.length > 0) {
             flags.functionExecutionId = executionId;
+          }
+        }
+      }
+      // クリック元メッセージのchannel/tsがまだ無い場合はbodyから補完する
+      // Fill messageChannel/ts from the clicked message body when missing
+      // Lengkapi messageChannel/ts dari body pesan yang diklik jika belum ada
+      if (!flags.messageChannel || !flags.messageTs) {
+        const channel = bodyRecord.channel;
+        const message = bodyRecord.message;
+        if (typeof channel === "object" && channel !== null) {
+          const channelId = (channel as { id?: unknown }).id;
+          if (typeof channelId === "string") {
+            flags.messageChannel = channelId;
+          }
+        }
+        if (typeof message === "object" && message !== null) {
+          const ts = (message as { ts?: unknown }).ts;
+          if (typeof ts === "string") {
+            flags.messageTs = ts;
           }
         }
       }
@@ -397,7 +613,7 @@ export function registerMasterPicker(app: App, mcpClient: AssenMcpClient): void 
         ? selectedOption(view.state.values as never, "job_seeker_block", JOB_SEEKER_ACTION_ID)
         : { value: "", label: "" };
 
-      const outputs = {
+      const outputs: SelectionOutputs = {
         staff_value: staff.value,
         staff_label: staff.label,
         partner_value: partner.value,
@@ -412,8 +628,20 @@ export function registerMasterPicker(app: App, mcpClient: AssenMcpClient): void 
 
       await client.functions.completeSuccess({
         function_execution_id: flags.functionExecutionId,
-        outputs,
+        outputs: { ...outputs },
       });
+
+      try {
+        await publishSelectionResult(client, flags, outputs);
+      } catch (publishError) {
+        // 完了自体は成功しているので、結果表示の失敗はログのみ
+        // Function already completed; result display failures are log-only
+        // Function sudah selesai; kegagalan tampilan hasil hanya dicatat di log
+        logMessage("warning", "選択結果の表示更新に失敗しました / failed to publish selection result", {
+          error: publishError instanceof Error ? publishError.message : String(publishError),
+        });
+      }
+
       logMessage("info", "マスタ選択を完了しました / completed master picker", {
         functionExecutionId: flags.functionExecutionId,
         partnerLabel: partner.label || undefined,

@@ -479,7 +479,7 @@ gcloud run deploy assen-slack-bolt \
   --set-secrets=SLACK_BOT_TOKEN=assen-slack-bolt-bot-token:latest,SLACK_SIGNING_SECRET=assen-slack-bolt-signing-secret:latest
 ```
 
-Slackアプリは[`docs/slack-assen-master-picker-manifest.json`](slack-assen-master-picker-manifest.json)から作成し、Request URL / Options Load URLを`https://<assen-slack-bolt-url>/slack/events`へ設定する。Org Level Appsのオプトインがカスタムステップの必須条件。
+Slackアプリは[`docs/slack-assen-master-picker-manifest.json`](slack-assen-master-picker-manifest.json)から作成し、Request URL / Options Load URLを`https://<assen-slack-bolt-url>/slack/events`へ設定する。Org Level Appsのオプトインがカスタムステップの必須条件。Workflow入力の`notify_channel`を使うとボタンをチャンネルに出せる（ボット招待が必要。未参加時は担当者DMへフォールバック）。確定後は同じメッセージが選択サマリーに更新される。
 
 ## 7. GitHub Actions側の設定 / GitHub Actions setup / Setelan sisi GitHub Actions
 

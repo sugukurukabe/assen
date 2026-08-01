@@ -48,6 +48,13 @@
           "is_required": true,
           "name": "assignee"
         },
+        "notify_channel": {
+          "type": "slack#/types/channel_id",
+          "title": "通知チャンネル",
+          "description": "ボタン付きメッセージを投稿するチャンネル（未指定なら担当者のDM）。ボットを招待しておくこと",
+          "is_required": false,
+          "name": "notify_channel"
+        },
         "ask_staff": {
           "type": "boolean",
           "title": "スタッフを選ぶ",
