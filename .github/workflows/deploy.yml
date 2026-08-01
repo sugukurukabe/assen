@@ -53,7 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [runtime, migrator, outbox-worker]
+        target: [runtime, migrator, outbox-worker, slack-bolt]
 
     steps:
       - uses: actions/checkout@v4
@@ -203,3 +203,29 @@ jobs:
             --image="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/assen/outbox-worker:${{ github.sha }}" \
             "${ENV_FLAG[@]}" \
             --quiet
+
+  # --------------------------------------------------------------------------
+  # Deploy slack-bolt（Workflowカスタムステップ。初回プロビジョニングはops-runbookの手動手順）
+  # --------------------------------------------------------------------------
+  deploy-slack-bolt:
+    name: Deploy slack-bolt service
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: assen-internal
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: assen-slack-bolt
+          region: ${{ env.REGION }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          image: ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/assen/slack-bolt:${{ github.sha }}
+          no_traffic: false

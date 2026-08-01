@@ -19,8 +19,9 @@ Dokumen ini adalah prosedur eksekusi untuk bagian G checklist, "Provisioning ins
 | `assen-migrator`（Cloud Run Job) | ✅ 作成・実行成功 | |
 | `assen-runtime`（Cloud Run Service） | ✅ デプロイ済み・稼働中 | `https://assen-runtime-000000000000.asia-northeast1.run.app` 。`GOOGLE_OAUTH_CLIENT_ID`は実際の値を設定済み。IAM invokerは`allUsers`に開放（理由は8節参照）。`gcloud run services describe`は`https://assen-runtime-aeqvsod3aq-an.a.run.app`（hash形式）を正規URLとして返すが、project番号形式のURLも同じサービスに解決することを確認済み。`OAUTH_ISSUER`/`OAUTH_JWKS_URI`はproject番号形式で設定した |
 | `assen-outbox-worker`（Worker Pool） | ✅ デプロイ済み・稼働中 | |
-| ClaudeワンクリックOAuth → Assen JWT → MCP `tools/list` | 実装済み・デプロイ後確認待ち | `/mcp`の401 `WWW-Authenticate`、RFC 9728 Protected Resource Metadata、DCR、PKCE、refresh token rotationを実装済み。Google Console callback URIとCloud Run Secret設定後にClaude ConnectorでE2E確認する |
+| ClaudeワンクリックOAuth → Assen JWT → MCP `tools/list` | ✅ 実装・デプロイ済み（2026-08-01確認） | Claude Custom ConnectorでGoogle Workspaceログイン→28ツール。allowlist登録メールのみ接続可 |
 | Slack承認通知連携 | ✅ 設定済み・稼働確認済み（2026-07-24） | 既存の`sugukuru_slack_bot_token`（aiosxagent bot）を再利用し、`#審査完了`（`C00000000`）へ`chat.postMessage`が成功することを確認済み。詳細は6.3節追記参照 |
+| Slack Master Picker（Bolt） | 🔧 初回プロビジョニング手順あり | `assen-slack-bolt` Cloud Run + 新規Slackアプリ。詳細は6.4節・[`docs/slack-assen-master-picker-manifest.json`](slack-assen-master-picker-manifest.json) |
 
 **未完了・要フォローアップ**：ネットワーク層の追加防御（IAP／VPN）は現時点でドメイン・VPN機器の前提が無いため**意図的に見送り**（アプリ層OAuth＋allowlistを当面の正式方針として採用、8節参照）、GitHub Actions環境保護は未設定（`sugukurukabe`個人アカウントのGitHub Freeプランでは`required reviewers`保護ルール自体が使えないため、有料プランへのアップグレードか代替手段が必要、8節参照）。
 
@@ -442,6 +443,42 @@ gcloud run worker-pools deploy assen-outbox-worker \
 6. `chat.postMessage`を直接呼び、`#審査完了`への投稿が`ok:true`で成功することを実際に確認（確認用メッセージは`chat.delete`で削除済み）
 
 これにより、実際の承認依頼発生時（`document.approval_requested`イベント）にSlackへ通知が届くようになった。
+
+### 6.4 assen-slack-bolt（Workflowカスタムステップ）
+
+`src/services/slack-bolt/server.ts`はSlackからのHTTPリクエストを受け、Assen MCPの`staff_list` / `partner_list` / `job_seeker_list`を呼ぶ。**DATABASE_URL・PII鍵・freeeシークレットは持たない**（認証はサービスアカウントIDトークン→`/oauth/token-exchange`、role=`system`）。
+
+```bash
+# Secret（Slackアプリ作成後）
+printf '%s' 'xoxb-...' | gcloud secrets create assen-slack-bolt-bot-token \
+  --project=sugukurucorpsite --replication-policy=user-managed --locations=asia-northeast1 --data-file=-
+printf '%s' 'signing-secret' | gcloud secrets create assen-slack-bolt-signing-secret \
+  --project=sugukurucorpsite --replication-policy=user-managed --locations=asia-northeast1 --data-file=-
+
+gcloud secrets add-iam-policy-binding assen-slack-bolt-bot-token \
+  --project=sugukurucorpsite \
+  --member="serviceAccount:assen-slack-bolt@sugukurucorpsite.iam.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+gcloud secrets add-iam-policy-binding assen-slack-bolt-signing-secret \
+  --project=sugukurucorpsite \
+  --member="serviceAccount:assen-slack-bolt@sugukurucorpsite.iam.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+
+# 初回デプロイ（Options Load URLの3秒制限対策で min-instances=1）
+gcloud run deploy assen-slack-bolt \
+  --project=sugukurucorpsite \
+  --region=asia-northeast1 \
+  --image=asia-northeast1-docker.pkg.dev/sugukurucorpsite/assen/slack-bolt:latest \
+  --service-account=assen-slack-bolt@sugukurucorpsite.iam.gserviceaccount.com \
+  --allow-unauthenticated \
+  --min-instances=1 \
+  --max-instances=5 \
+  --port=8080 \
+  --set-env-vars="NODE_ENV=production,SLACK_ALLOWED_TEAM_ID=T07QM8P2VCK,ASSEN_MCP_URL=https://assen-runtime-aeqvsod3aq-an.a.run.app/mcp,ASSEN_TOKEN_EXCHANGE_URL=https://assen-runtime-aeqvsod3aq-an.a.run.app/oauth/token-exchange,GOOGLE_OAUTH_CLIENT_ID=771327592526-fgk4bbem6cb2n6h4umf76hl9v747j57i.apps.googleusercontent.com" \
+  --set-secrets=SLACK_BOT_TOKEN=assen-slack-bolt-bot-token:latest,SLACK_SIGNING_SECRET=assen-slack-bolt-signing-secret:latest
+```
+
+Slackアプリは[`docs/slack-assen-master-picker-manifest.json`](slack-assen-master-picker-manifest.json)から作成し、Request URL / Options Load URLを`https://<assen-slack-bolt-url>/slack/events`へ設定する。Org Level Appsのオプトインがカスタムステップの必須条件。
 
 ## 7. GitHub Actions側の設定 / GitHub Actions setup / Setelan sisi GitHub Actions
 

@@ -8,6 +8,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ServiceContext } from "../protocol/service-context.js";
 import { assertScope } from "../lib/auth.js";
 import { logMessage } from "../lib/logger.js";
+import { LIST_OPTION_ALLOWED_ROLES } from "../services/list-options/allowed-roles.js";
 import { listStaff } from "../services/list-options/list-staff.js";
 import { toToolErrorResult, toToolResult } from "./common-envelope.js";
 
@@ -37,7 +38,7 @@ export function registerStaffList(server: McpServer, context: ServiceContext): v
     },
     async (args) => {
       try {
-        assertScope(context.principal, ["requester", "admin", "approver"]);
+        assertScope(context.principal, [...LIST_OPTION_ALLOWED_ROLES]);
         return toToolResult(await listStaff(args));
       } catch (error) {
         logMessage("error", "staff_listに失敗しました / staff_list failed", {

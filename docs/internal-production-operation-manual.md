@@ -337,6 +337,29 @@ The default TTL is five minutes. After registering a new partner in freee, wait 
 
 TTL default lima menit. Setelah mendaftarkan partner baru di freee, tunggu maksimal lima menit atau restart runtime revision untuk memperbarui cache. Kegagalan freee OAuth / Secret Manager / izin mengembalikan `isError: true` dan berbeda dari hasil nol yang normal (`items: []`).
 
+### 7.4 Slackカスタムステップ（Assen Master Picker） / Slack custom step (Assen Master Picker) / Custom step Slack (Assen Master Picker)
+
+Workflow Builderの標準フォームは実行時に外部から選択肢を取れない。`assen-slack-bolt`がカスタムステップ`pick_master_values`を提供し、モーダル内の`external_select`から`staff_list` / `partner_list` / `job_seeker_list`を呼ぶ。
+
+Workflow Builder's built-in forms cannot load external options at runtime. `assen-slack-bolt` provides the `pick_master_values` custom step and calls `staff_list` / `partner_list` / `job_seeker_list` from modal `external_select` menus.
+
+Form bawaan Workflow Builder tidak bisa memuat opsi eksternal saat runtime. `assen-slack-bolt` menyediakan custom step `pick_master_values` dan memanggil `staff_list` / `partner_list` / `job_seeker_list` dari menu `external_select` di modal.
+
+手順の要約 / Summary / Ringkasan:
+
+1. [`docs/slack-assen-master-picker-manifest.json`](slack-assen-master-picker-manifest.json) から新規Slackアプリを作成し、Org Level Appsを有効化する
+2. Request URL / Options Load URL を `https://<assen-slack-bolt>/slack/events` に設定する
+3. Bot Token と Signing Secret を Secret Manager（`assen-slack-bolt-bot-token` / `assen-slack-bolt-signing-secret`）へ入れる
+4. Cloud Run `assen-slack-bolt` は `min-instances=1`（Options Load URLの3秒制限対策）、サービスアカウントは `assen-slack-bolt@...`（allowlist role=`system`）
+
+トラブル / Troubleshooting / Pemecahan masalah:
+
+| 症状 | 原因候補 | 対応 |
+|---|---|---|
+| 選択肢が出ない / 空 | freee障害、Bolt→Assen認証失敗、3秒タイムアウト | Boltログ・runtimeログ、`min-instances`、freee tokenを確認 |
+| `team_not_allowed` | `SLACK_ALLOWED_TEAM_ID`不一致 | 自社`team_id`（`T07QM8P2VCK`）を確認 |
+| ステップがIn progressのまま | `functions.completeSuccess`未呼出 | モーダル送信・`function_execution_id`を確認 |
+
 ---
 
 ## 8. トラブル対応 / Troubleshooting / Pemecahan Masalah

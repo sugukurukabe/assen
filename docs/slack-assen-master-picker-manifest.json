@@ -1,0 +1,124 @@
+{
+  "display_information": {
+    "name": "Assen Master Picker",
+    "description": "Assenのstaff / partner / job_seeker選択肢をWorkflow Builderから選ぶカスタムステップ",
+    "background_color": "#1a5f4a"
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "Assen Master Picker",
+      "always_online": true
+    }
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": [
+        "chat:write",
+        "users:read"
+      ]
+    }
+  },
+  "settings": {
+    "event_subscriptions": {
+      "request_url": "https://REPLACE_WITH_BOLT_URL/slack/events",
+      "bot_events": [
+        "function_executed"
+      ]
+    },
+    "interactivity": {
+      "is_enabled": true,
+      "request_url": "https://REPLACE_WITH_BOLT_URL/slack/events",
+      "message_menu_options_url": "https://REPLACE_WITH_BOLT_URL/slack/events"
+    },
+    "org_deploy_enabled": true,
+    "socket_mode_enabled": false,
+    "token_rotation_enabled": false
+  },
+  "functions": {
+    "pick_master_values": {
+      "title": "Assenマスタを選ぶ",
+      "description": "スタッフ・取引先・求職者をAssenから検索して選ぶ",
+      "input_parameters": {
+        "assignee": {
+          "type": "slack#/types/user_id",
+          "title": "選択担当者",
+          "description": "モーダルを開くSlackユーザー",
+          "is_required": true,
+          "name": "assignee"
+        },
+        "ask_staff": {
+          "type": "slack#/types/boolean",
+          "title": "スタッフを選ぶ",
+          "description": "staff_listからスタッフを選ばせる",
+          "is_required": false,
+          "name": "ask_staff"
+        },
+        "ask_partner": {
+          "type": "slack#/types/boolean",
+          "title": "取引先を選ぶ",
+          "description": "partner_listから会社を選ばせる",
+          "is_required": false,
+          "name": "ask_partner"
+        },
+        "ask_job_seeker": {
+          "type": "slack#/types/boolean",
+          "title": "求職者を選ぶ",
+          "description": "job_seeker_listから求職者を選ばせる",
+          "is_required": false,
+          "name": "ask_job_seeker"
+        },
+        "title": {
+          "type": "string",
+          "title": "モーダルタイトル",
+          "description": "選択モーダルの見出し",
+          "is_required": false,
+          "name": "title"
+        }
+      },
+      "output_parameters": {
+        "staff_value": {
+          "type": "string",
+          "title": "スタッフID",
+          "description": "選ばれたstaffId",
+          "is_required": false,
+          "name": "staff_value"
+        },
+        "staff_label": {
+          "type": "string",
+          "title": "スタッフ名",
+          "description": "選ばれたスタッフの表示名",
+          "is_required": false,
+          "name": "staff_label"
+        },
+        "partner_value": {
+          "type": "string",
+          "title": "取引先ID",
+          "description": "選ばれたpartnerId",
+          "is_required": false,
+          "name": "partner_value"
+        },
+        "partner_label": {
+          "type": "string",
+          "title": "取引先名",
+          "description": "選ばれた取引先の正式社名",
+          "is_required": false,
+          "name": "partner_label"
+        },
+        "job_seeker_value": {
+          "type": "string",
+          "title": "求職者ID",
+          "description": "選ばれた求職者UUID",
+          "is_required": false,
+          "name": "job_seeker_value"
+        },
+        "job_seeker_label": {
+          "type": "string",
+          "title": "求職者名",
+          "description": "選ばれた求職者の氏名",
+          "is_required": false,
+          "name": "job_seeker_label"
+        }
+      }
+    }
+  }
+}

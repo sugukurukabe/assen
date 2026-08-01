@@ -102,6 +102,13 @@ const envSchema = z.object({
   // Destination for monthly board / management review posts (#95 equivalent). Monthly reports post here, not to arbitrary channels
   // Tujuan posting laporan bulanan / review manajemen (setara #95). Laporan bulanan diposting ke sini, bukan channel bebas
   SLACK_BOARD_CHANNEL_ID: z.string().optional().default(""),
+  // Slack Bolt（Workflowカスタムステップ）用。runtime本体では未使用。assen-slack-boltサービスが読む
+  // For Slack Bolt (Workflow custom steps). Unused by the main runtime; read by the assen-slack-bolt service
+  // Untuk Slack Bolt (custom step Workflow). Tidak dipakai runtime utama; dibaca layanan assen-slack-bolt
+  SLACK_SIGNING_SECRET: z.string().optional().default(""),
+  SLACK_ALLOWED_TEAM_ID: z.string().optional().default(""),
+  ASSEN_MCP_URL: z.string().optional().default(""),
+  ASSEN_TOKEN_EXCHANGE_URL: z.string().optional().default(""),
   // freee読み取り口（Slack dynamic options向け）。OAuth refresh tokenはローテーションされるためSecret Managerで保持する
   // freee read adapters (for Slack dynamic options). OAuth refresh tokens rotate, so they are stored in Secret Manager
   // Adapter baca freee (untuk dynamic options Slack). Refresh token OAuth berotasi, sehingga disimpan di Secret Manager

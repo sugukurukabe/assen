@@ -8,6 +8,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ServiceContext } from "../protocol/service-context.js";
 import { assertScope } from "../lib/auth.js";
 import { logMessage } from "../lib/logger.js";
+import { LIST_OPTION_ALLOWED_ROLES } from "../services/list-options/allowed-roles.js";
 import { listPartners } from "../services/list-options/list-partners.js";
 import { toToolErrorResult, toToolResult } from "./common-envelope.js";
 
@@ -37,7 +38,7 @@ export function registerPartnerList(server: McpServer, context: ServiceContext):
     },
     async (args) => {
       try {
-        assertScope(context.principal, ["requester", "admin", "approver"]);
+        assertScope(context.principal, [...LIST_OPTION_ALLOWED_ROLES]);
         return toToolResult(await listPartners(args));
       } catch (error) {
         logMessage("error", "partner_listに失敗しました / partner_list failed", {

@@ -151,7 +151,7 @@ jobs:
         run: docker rm -f assen-ci-minio || true
 
   docker-build:
-    name: Docker build (runtime / migrator / outbox-worker)
+    name: Docker build (runtime / migrator / outbox-worker / slack-bolt)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -164,3 +164,6 @@ jobs:
 
       - name: outbox-workerイメージのビルド確認 / Verify the outbox-worker image builds / Verifikasi image outbox-worker bisa dibangun
         run: docker build --target outbox-worker -t assen-ci:outbox-worker .
+
+      - name: slack-boltイメージのビルド確認 / Verify the slack-bolt image builds / Verifikasi image slack-bolt bisa dibangun
+        run: docker build --target slack-bolt -t assen-ci:slack-bolt .

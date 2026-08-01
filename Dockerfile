@@ -6,6 +6,7 @@
 #   docker build --target runtime -t assen:latest .
 #   docker build --target migrator -t assen-migrator:latest .
 #   docker build --target outbox-worker -t assen-outbox-worker:latest .
+#   docker build --target slack-bolt -t assen-slack-bolt:latest .
 #
 # Production Dockerfile for Assen. The default target is `runtime` (the MCP server itself).
 # `migrator` and `outbox-worker` targets are also provided (intended for Cloud Run Jobs/services with CMD overridden).
@@ -13,6 +14,7 @@
 #   docker build --target runtime -t assen:latest .
 #   docker build --target migrator -t assen-migrator:latest .
 #   docker build --target outbox-worker -t assen-outbox-worker:latest .
+#   docker build --target slack-bolt -t assen-slack-bolt:latest .
 #
 # Dockerfile produksi untuk Assen. Target default adalah `runtime` (server MCP itu sendiri).
 # Target `migrator` dan `outbox-worker` juga disediakan (untuk Cloud Run Jobs/services dengan CMD di-override).
@@ -20,6 +22,7 @@
 #   docker build --target runtime -t assen:latest .
 #   docker build --target migrator -t assen-migrator:latest .
 #   docker build --target outbox-worker -t assen-outbox-worker:latest .
+#   docker build --target slack-bolt -t assen-slack-bolt:latest .
 
 # ---- deps: 全依存関係をインストール（ビルド・マイグレーションに使う） / Install all dependencies (used for building and migrations) / Instal semua dependency (digunakan untuk build dan migrasi) ----
 FROM node:20-alpine AS deps
@@ -84,3 +87,20 @@ COPY --from=build /app/dist ./dist
 COPY package.json ./
 USER assen
 CMD ["node", "dist/src/services/outbox-worker/run.js"]
+
+# ---- slack-bolt: Workflow Builderカスタムステップ用HTTPサービス。Assen MCPを呼び出してdynamic optionsを返す。
+# DATABASE_URL / PII鍵 / freeeシークレットは持たない（MCP経由のみ）。Options Load URLの3秒制限に備え本番はmin-instances=1。
+# ---- slack-bolt: HTTP service for Workflow Builder custom steps. Calls Assen MCP for dynamic options.
+# Holds no DATABASE_URL / PII key / freee secrets (MCP only). Production uses min-instances=1 for the 3s Options Load URL limit.
+# ---- slack-bolt: layanan HTTP untuk custom step Workflow Builder. Memanggil Assen MCP untuk opsi dinamis.
+# Tidak menyimpan DATABASE_URL / kunci PII / secret freee (hanya MCP). Produksi memakai min-instances=1 untuk batas 3 detik Options Load URL.
+FROM node:20-alpine AS slack-bolt
+ENV NODE_ENV=production
+WORKDIR /app
+RUN addgroup -S assen && adduser -S assen -G assen
+COPY --from=prod-deps /app/node_modules ./node_modules
+COPY --from=build /app/dist ./dist
+COPY package.json ./
+USER assen
+EXPOSE 8080
+CMD ["node", "dist/src/services/slack-bolt/server.js"]

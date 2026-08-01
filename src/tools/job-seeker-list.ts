@@ -8,6 +8,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ServiceContext } from "../protocol/service-context.js";
 import { assertScope } from "../lib/auth.js";
 import { logMessage } from "../lib/logger.js";
+import { LIST_OPTION_ALLOWED_ROLES } from "../services/list-options/allowed-roles.js";
 import { listJobSeekers } from "../services/list-options/list-job-seekers.js";
 import { toToolErrorResult, toToolResult } from "./common-envelope.js";
 
@@ -34,7 +35,7 @@ export function registerJobSeekerList(server: McpServer, context: ServiceContext
     },
     async (args) => {
       try {
-        assertScope(context.principal, ["requester", "admin", "approver"]);
+        assertScope(context.principal, [...LIST_OPTION_ALLOWED_ROLES]);
         return toToolResult(await listJobSeekers(context.db, args));
       } catch (error) {
         logMessage("error", "job_seeker_listに失敗しました / job_seeker_list failed", {

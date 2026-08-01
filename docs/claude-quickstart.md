@@ -96,14 +96,14 @@ export ASSEN_BASE_URL="https://assen-runtime-000000000000.asia-northeast1.run.ap
 pnpm run auth:get-token
 ```
 
-取得したtokenは8時間有効です。Slack・チケット・スクリーンショットには貼らないでください。
+取得したtokenは既定で1時間有効です（本番の`TOKEN_EXCHANGE_TOKEN_TTL_SECONDS`が長い場合はその値に従う）。Slack・チケット・スクリーンショットには貼らないでください。
 
 ---
 
 ## 6. セキュリティ上の注意（本番相当環境固有） / Security notes specific to this environment / Catatan keamanan khusus lingkungan ini
 
 - **`assen-runtime`はネットワーク的にはインターネット公開されています**（Cloud Run IAM invokerは`allUsers`）。実質的なアクセス制御はアプリ層OAuth（`TOKEN_EXCHANGE_ALLOWLIST_JSON`に登録されたWorkspaceメールのみ）に完全に依存しています。IAP/VPNのようなネットワーク層の追加防御は現時点で意図的に見送っています（[`docs/ops-runbook.md`](ops-runbook.md)8節参照）
-- 手動fallbackで取得したアクセストークンをSlack・チケット・スクリーンショットに貼らないこと（8時間有効な認証情報です）
+- 手動fallbackで取得したアクセストークンをSlack・チケット・スクリーンショットに貼らないこと（既定1時間有効な認証情報です）
 - 自分のトークンを他の人と共有しないこと（`approved_by`等はトークンから自動導出されるため、共有はなりすましと同義です）
 - 在留カード・パスポート等の画像をAssen経由でアップロード・保存しようとしないこと（Assenのスコープ外）
 
