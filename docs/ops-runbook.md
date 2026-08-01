@@ -333,6 +333,7 @@ gcloud run deploy assen-runtime \
    ```text
    https://assen-runtime-000000000000.asia-northeast1.run.app/oauth/callback
    ```
+   **`http://localhost:8945/callback`は消さずに残す（置き換えない）**。2026-08-01時点ではlocalhostが登録から外れており、`scripts/get-assen-token.ts`がGoogleの`エラー 400: redirect_uri_mismatch`で失敗した。CLIからAssen JWTを取ってHTTP経路を直接検証したい場合は両方を登録しておく必要がある（Claude経由の動作確認は`/oauth/callback`だけで足りるため、この登録が無くても業務は回る）。
 2. `GOOGLE_OAUTH_CLIENT_SECRET`をSecret Managerへ保存し、`assen-runtime`へ渡す：
    ```bash
    gcloud run services update assen-runtime \
