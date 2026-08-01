@@ -86,6 +86,29 @@ export function createBoltApp(): { app: App; mcpClient: AssenMcpClient } {
     });
   }
 
+  // block_actionsの生ペイロードを診断（trigger_id欠落の切り分け）
+  // Diagnose raw block_actions payloads (to isolate missing trigger_id)
+  // Diagnosis payload mentah block_actions (untuk isolasi trigger_id yang hilang)
+  app.use(async ({ body, next }) => {
+    if (typeof body === "object" && body !== null && (body as { type?: unknown }).type === "block_actions") {
+      const record = body as Record<string, unknown>;
+      const actions = Array.isArray(record.actions) ? record.actions : [];
+      logMessage("info", "block_actionsを受信しました / received block_actions", {
+        keys: Object.keys(record).slice(0, 40),
+        triggerIdType: typeof record.trigger_id,
+        hasTriggerId: typeof record.trigger_id === "string" && record.trigger_id.length > 0,
+        actionIds: actions
+          .map((item) =>
+            typeof item === "object" && item !== null && typeof (item as { action_id?: unknown }).action_id === "string"
+              ? (item as { action_id: string }).action_id
+              : "?",
+          )
+          .slice(0, 5),
+      });
+    }
+    await next();
+  });
+
   // function_executedの到達とcallback_id不一致を診断できるようにする
   // Log function_executed arrivals so callback_id mismatches are diagnosable
   // Catat kedatangan function_executed agar ketidakcocokan callback_id bisa didiagnosis
