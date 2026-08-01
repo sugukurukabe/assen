@@ -291,23 +291,38 @@ export function registerMasterPicker(app: App, mcpClient: AssenMcpClient): void 
   });
 
   app.action(OPEN_PICKER_ACTION_ID, async ({ ack, body, client, action }) => {
+    // trigger_idはack前に確保する（3秒以内にviews.openする必要がある）
+    // Capture trigger_id before ack (views.open must happen within 3 seconds)
+    // Ambil trigger_id sebelum ack (views.open harus dalam 3 detik)
+    const bodyRecord = body as Record<string, unknown>;
+    const triggerId = typeof bodyRecord.trigger_id === "string" ? bodyRecord.trigger_id : undefined;
+    logMessage("info", "open_master_pickerアクションを受信 / received open_master_picker action", {
+      bodyType: typeof bodyRecord.type === "string" ? bodyRecord.type : undefined,
+      bodyKeys: Object.keys(bodyRecord).slice(0, 30),
+      hasTriggerId: Boolean(triggerId),
+      hasFunctionData: Boolean(bodyRecord.function_data),
+    });
     await ack();
     try {
-      if (!("trigger_id" in body) || typeof body.trigger_id !== "string") {
+      if (!triggerId) {
         throw new Error("trigger_id is missing");
       }
       const value = "value" in action && typeof action.value === "string" ? action.value : "";
       const flags = parsePrivateMetadata(value);
       if (!flags.functionExecutionId) {
-        const fromBody = (body as { function_execution_id?: string }).function_execution_id;
-        if (typeof fromBody === "string" && fromBody.length > 0) {
-          flags.functionExecutionId = fromBody;
+        const functionData = bodyRecord.function_data;
+        if (typeof functionData === "object" && functionData !== null) {
+          const executionId = (functionData as { execution_id?: unknown }).execution_id;
+          if (typeof executionId === "string" && executionId.length > 0) {
+            flags.functionExecutionId = executionId;
+          }
         }
       }
       await client.views.open({
-        trigger_id: body.trigger_id,
+        trigger_id: triggerId,
         view: buildModal(flags),
       });
+      logMessage("info", "マスタ選択モーダルを開きました / opened master picker modal");
     } catch (error) {
       logMessage("error", "マスタ選択モーダルを開けませんでした / failed to open master picker modal", {
         error: error instanceof Error ? error.message : String(error),
