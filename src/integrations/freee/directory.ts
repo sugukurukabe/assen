@@ -5,7 +5,7 @@
  */
 import { assertFreeeConfigured, loadEnv } from "../../lib/env.js";
 import { FreeeApiClient } from "./client.js";
-import { GoogleSecretJsonStore, readStaffIdMapping, SecretManagerFreeeTokenProvider } from "./secret-manager-store.js";
+import { GoogleSecretJsonStore, readPartnerExclusions, readStaffIdMapping, SecretManagerFreeeTokenProvider } from "./secret-manager-store.js";
 import type { FreeeDirectory, PartnerMasterCandidate, StaffMasterCandidate } from "./types.js";
 
 interface CacheEntry<T> {
@@ -22,6 +22,7 @@ export class CachedFreeeDirectory implements FreeeDirectory {
   constructor(
     private readonly ttlMillis: number,
     private readonly staffMappingSecretName: string,
+    private readonly partnerExclusionSecretName: string,
     private readonly store: { readJson(secretName: string): Promise<unknown> },
     private readonly client: FreeeApiClient,
   ) {}
@@ -43,14 +44,19 @@ export class CachedFreeeDirectory implements FreeeDirectory {
       return this.partnerCache.value;
     }
     if (!this.partnerInFlight) {
-      this.partnerInFlight = this.client.listPartnerCandidates().then((value) => {
-        this.partnerCache = { value, expiresAt: Date.now() + this.ttlMillis };
-        return value;
-      }).finally(() => {
+      this.partnerInFlight = this.refreshPartners().finally(() => {
         this.partnerInFlight = undefined;
       });
     }
     return this.partnerInFlight;
+  }
+
+  private async refreshPartners(): Promise<PartnerMasterCandidate[]> {
+    const excluded = await readPartnerExclusions(this.store, this.partnerExclusionSecretName);
+    const candidates = await this.client.listPartnerCandidates();
+    const value = candidates.filter((candidate) => !excluded.has(candidate.partnerId));
+    this.partnerCache = { value, expiresAt: Date.now() + this.ttlMillis };
+    return value;
   }
 
   private async refreshStaff(): Promise<StaffMasterCandidate[]> {
@@ -74,7 +80,13 @@ export function getFreeeDirectory(): FreeeDirectory {
     const store = new GoogleSecretJsonStore();
     const tokenProvider = new SecretManagerFreeeTokenProvider(env, store);
     const client = new FreeeApiClient(env, tokenProvider);
-    defaultDirectory = new CachedFreeeDirectory(env.FREEE_CACHE_TTL_SECONDS * 1000, env.FREEE_STAFF_ID_MAPPING_SECRET_NAME, store, client);
+    defaultDirectory = new CachedFreeeDirectory(
+      env.FREEE_CACHE_TTL_SECONDS * 1000,
+      env.FREEE_STAFF_ID_MAPPING_SECRET_NAME,
+      env.FREEE_PARTNER_EXCLUSION_SECRET_NAME,
+      store,
+      client,
+    );
   }
   return defaultDirectory;
 }

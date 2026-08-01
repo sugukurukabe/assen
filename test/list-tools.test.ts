@@ -15,7 +15,9 @@ import { listPartners } from "../src/services/list-options/list-partners.js";
 import { listStaff } from "../src/services/list-options/list-staff.js";
 import type { FreeeDirectory, PartnerMasterCandidate, StaffMasterCandidate } from "../src/integrations/freee/types.js";
 import { FreeeIntegrationError } from "../src/integrations/freee/types.js";
+import { CachedFreeeDirectory } from "../src/integrations/freee/directory.js";
 import {
+  readPartnerExclusions,
   readStaffIdMapping,
   SecretManagerFreeeTokenProvider,
   type AccessTokenProvider,
@@ -215,6 +217,73 @@ describe("freee Secret Manager helpers", () => {
       ],
     });
     await expect(readStaffIdMapping(store, "projects/p/secrets/staff-map")).rejects.toBeInstanceOf(FreeeIntegrationError);
+  });
+
+  it("reads partner exclusions and requires a reason for each entry", async () => {
+    const store = new FakeSecretStore({
+      partners: [
+        { partnerId: "116901600", reason: "従業員本人（立替精算用） / employee themselves" },
+        { partnerId: "97612835", reason: "社内メールアドレスが名称になっている / partner name is an internal email address" },
+      ],
+    });
+    await expect(readPartnerExclusions(store, "projects/p/secrets/partner-exclusion")).resolves.toEqual(new Set(["116901600", "97612835"]));
+
+    const withoutReason = new FakeSecretStore({ partners: [{ partnerId: "116901600" }] });
+    await expect(readPartnerExclusions(withoutReason, "projects/p/secrets/partner-exclusion")).rejects.toThrow();
+  });
+
+  it("rejects duplicate partner exclusions", async () => {
+    const store = new FakeSecretStore({
+      partners: [
+        { partnerId: "116901600", reason: "従業員本人 / employee" },
+        { partnerId: "116901600", reason: "重複 / duplicate" },
+      ],
+    });
+    await expect(readPartnerExclusions(store, "projects/p/secrets/partner-exclusion")).rejects.toBeInstanceOf(FreeeIntegrationError);
+  });
+});
+
+describe("CachedFreeeDirectory partner exclusions", () => {
+  const partners: PartnerMasterCandidate[] = [
+    { partnerId: "88436371", officialName: "有限会社南原農園", available: true },
+    { partnerId: "116901600", officialName: "アリ ユスフ", available: true },
+    { partnerId: "97612835", officialName: "takenouchi@sugu-kuru.co.jp", available: true },
+  ];
+
+  function directoryWithExclusions(exclusions: Array<{ partnerId: string; reason: string }>): CachedFreeeDirectory {
+    const store = new FakeSecretStore({ partners: exclusions });
+    const client = {
+      listPartnerCandidates: () => Promise.resolve(partners),
+    } as unknown as FreeeApiClient;
+    return new CachedFreeeDirectory(300_000, "projects/p/secrets/staff-map", "projects/p/secrets/partner-exclusion", store, client);
+  }
+
+  it("drops excluded partners so employees never appear as dispatch destinations", async () => {
+    const directory = directoryWithExclusions([
+      { partnerId: "116901600", reason: "従業員本人 / employee" },
+      { partnerId: "97612835", reason: "社内メール名 / internal email name" },
+    ]);
+
+    const result = await listPartners({}, directory);
+
+    expect(result.items).toEqual([{ value: "88436371", label: "有限会社南原農園" }]);
+    expect(result.total).toBe(1);
+  });
+
+  it("keeps every partner when the exclusion list is empty", async () => {
+    const directory = directoryWithExclusions([]);
+
+    const result = await listPartners({}, directory);
+
+    expect(result.total).toBe(3);
+  });
+
+  it("excludes partners for every status, not just active", async () => {
+    const directory = directoryWithExclusions([{ partnerId: "116901600", reason: "従業員本人 / employee" }]);
+
+    const result = await listPartners({ status: "all" }, directory);
+
+    expect(result.items.map((item) => item.value)).toEqual(["88436371", "97612835"]);
   });
 });
 

@@ -44,6 +44,7 @@ const env = {
   FREEE_COMPANY_ID: "",
   FREEE_TOKEN_SECRET_NAME: "",
   FREEE_STAFF_ID_MAPPING_SECRET_NAME: "",
+  FREEE_PARTNER_EXCLUSION_SECRET_NAME: "",
   FREEE_CACHE_TTL_SECONDS: 300,
   FREEE_HR_BASE_URL: "https://api.freee.co.jp/hr/api/v1",
   FREEE_ACCOUNTING_BASE_URL: "https://api.freee.co.jp/api/1",

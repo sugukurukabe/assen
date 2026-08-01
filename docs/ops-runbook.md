@@ -363,13 +363,18 @@ Secrets（`sugukurucorpsite`に作成済み。レプリケーションは`asia-n
 - `assen-freee-token`（JSON: `{"accessToken","refreshToken","expiresAtEpochSeconds"}`）
 - `assen-freee-staff-id-mapping`（JSON: `{"employees":[{"freeeEmployeeId":"...","staffId":"..."}]}`。freee社員番号(`num`)が空の従業員、またはstaffIdを帳簿側の別キーへ意図的に変えたい従業員だけを例外として書く「上書き表」。新入社員の追加では更新不要）
   - 2026-08-01時点の実値は1件のみ: `{"employees":[{"freeeEmployeeId":"3262070","staffId":"RETIRED-3262070"}]}`。この従業員（RAJIB、2025-07-31退職）だけが`num`が空のため、`status="all"` / `"retired"`で明示エラーになるのを避ける目的で入れている。freee側で`num`を採番したらこのエントリは削除してよい。
+- `assen-freee-partner-exclusion`（JSON: `{"partners":[{"partnerId":"...","reason":"..."}]}`。`reason`は必須。棚卸しできない除外表を作らないため）
+  - freee会計には**給与・立替精算のために従業員本人が取引先として登録されている**（2026-08-01時点で`available=true`の564件中62件。freee取引先ID `116901xxx`〜`116904xxx`の一括登録ブロックと、人事労務の氏名と一致した2件）。加えて名称が社内メールアドレスのままの2件がある。合計64件を除外し、`partner_list`は564件→500件になる。
+  - freee側で`available=false`にはしない（経理の立替精算の入力候補からも消えてしまうため）。Assen側だけで派遣先候補から外す。
+  - `中山圭太`のような個人名でも**個人事業主の農家は正当な派遣先**なので、個人名だけを根拠に除外しない。判断根拠はfreee人事労務の従業員一覧との氏名突き合わせに置く。
+  - 未整理の関連論点: freee取引先ID `117353xxx`帯には社宅関連の不動産会社・ガス会社・大家が含まれる。これらも派遣先ではないが、経理で使うため除外可否は未判断（必要になったらこの除外表へ追記する）。
 
 `assen-runtime` SAに必要なIAM:
 - token secret: `roles/secretmanager.secretAccessor` と `roles/secretmanager.secretVersionAdder`（refresh後の新version追加）
-- staff mapping secret: `roles/secretmanager.secretAccessor` のみ
+- staff mapping secret / partner exclusion secret: `roles/secretmanager.secretAccessor` のみ
 
 Cloud Run env例:
-`FREEE_CLIENT_ID` / `FREEE_CLIENT_SECRET` / `FREEE_COMPANY_ID` / `FREEE_TOKEN_SECRET_NAME` / `FREEE_STAFF_ID_MAPPING_SECRET_NAME` / `FREEE_CACHE_TTL_SECONDS=300`
+`FREEE_CLIENT_ID` / `FREEE_CLIENT_SECRET` / `FREEE_COMPANY_ID` / `FREEE_TOKEN_SECRET_NAME` / `FREEE_STAFF_ID_MAPPING_SECRET_NAME` / `FREEE_PARTNER_EXCLUSION_SECRET_NAME` / `FREEE_CACHE_TTL_SECONDS=300`
 
 初回tokenの取得: freee developers（`https://app.secure.freee.co.jp/developers`）で**Assen専用アプリ**を作成する（freee MCPが使う既存アプリとは分ける。refresh tokenはワンタイムでローテーションするため、共用すると相互に失効させる）。人事労務・会計の読み取り権限を付与し、コールバックURLに`http://localhost:8946/callback`を登録する。その後ローカルで：
 

@@ -110,6 +110,10 @@ const envSchema = z.object({
   FREEE_COMPANY_ID: z.string().optional().default(""),
   FREEE_TOKEN_SECRET_NAME: z.string().optional().default(""),
   FREEE_STAFF_ID_MAPPING_SECRET_NAME: z.string().optional().default(""),
+  // freee会計には給与・立替精算のために従業員本人が取引先として登録されている。派遣先候補に本人が並ばないよう除外表を持つ
+  // freee Accounting registers employees themselves as partners for payroll/expense purposes; this exclusion list keeps them out of dispatch-destination options
+  // freee Accounting mendaftarkan karyawan sendiri sebagai partner untuk payroll/reimbursement; daftar pengecualian ini menjaga mereka keluar dari opsi tujuan penempatan
+  FREEE_PARTNER_EXCLUSION_SECRET_NAME: z.string().optional().default(""),
   FREEE_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(300),
   FREEE_HR_BASE_URL: z.string().url().default("https://api.freee.co.jp/hr/api/v1"),
   FREEE_ACCOUNTING_BASE_URL: z.string().url().default("https://api.freee.co.jp/api/1"),
@@ -208,6 +212,7 @@ export function assertFreeeConfigured(env: AssenEnv = loadEnv()): void {
     ["FREEE_COMPANY_ID", env.FREEE_COMPANY_ID],
     ["FREEE_TOKEN_SECRET_NAME", env.FREEE_TOKEN_SECRET_NAME],
     ["FREEE_STAFF_ID_MAPPING_SECRET_NAME", env.FREEE_STAFF_ID_MAPPING_SECRET_NAME],
+    ["FREEE_PARTNER_EXCLUSION_SECRET_NAME", env.FREEE_PARTNER_EXCLUSION_SECRET_NAME],
   ];
   const missing = required.filter(([, value]) => !value).map(([key]) => key);
   if (missing.length > 0) {

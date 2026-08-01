@@ -29,6 +29,18 @@ const staffMappingEntriesSchema = z.object({
   ),
 });
 
+// reasonは運用者が後から棚卸しできるようにするための必須メモ（誰が・なぜ外したかが分からない除外表を作らない）
+// reason is a required note so operators can audit the list later (never build an exclusion list without a stated reason)
+// reason wajib agar operator dapat mengaudit daftar ini nanti (jangan membuat daftar pengecualian tanpa alasan tertulis)
+const partnerExclusionEntriesSchema = z.object({
+  partners: z.array(
+    z.object({
+      partnerId: z.string().min(1),
+      reason: z.string().min(1),
+    }),
+  ),
+});
+
 type FreeeTokenSecret = z.infer<typeof tokenSecretSchema>;
 
 export interface SecretJsonStore {
@@ -139,6 +151,24 @@ export class SecretManagerFreeeTokenProvider implements AccessTokenProvider {
     this.cachedToken = nextToken;
     return nextToken;
   }
+}
+
+/**
+ * 派遣先候補から外すfreee取引先IDの集合を読む（従業員本人・社内メール名などの経理専用取引先）
+ * Reads the set of freee partner ids to keep out of dispatch-destination options (accounting-only partners such as employees themselves)
+ * Membaca kumpulan id partner freee yang dikecualikan dari opsi tujuan penempatan (partner khusus akuntansi seperti karyawan sendiri)
+ */
+export async function readPartnerExclusions(store: Pick<SecretJsonStore, "readJson">, secretName: string): Promise<Set<string>> {
+  const raw = await store.readJson(secretName);
+  const parsed = partnerExclusionEntriesSchema.parse(raw);
+  const result = new Set<string>();
+  for (const entry of parsed.partners) {
+    if (result.has(entry.partnerId)) {
+      throw new FreeeIntegrationError(`除外取引先IDが重複しています / Duplicate partner exclusion: ${entry.partnerId}`);
+    }
+    result.add(entry.partnerId);
+  }
+  return result;
 }
 
 export async function readStaffIdMapping(store: Pick<SecretJsonStore, "readJson">, secretName: string): Promise<Map<string, string>> {
