@@ -414,6 +414,12 @@ export function registerMasterPicker(app: App, mcpClient: AssenMcpClient): void 
         function_execution_id: flags.functionExecutionId,
         outputs,
       });
+      logMessage("info", "マスタ選択を完了しました / completed master picker", {
+        functionExecutionId: flags.functionExecutionId,
+        partnerLabel: partner.label || undefined,
+        staffLabel: staff.label || undefined,
+        jobSeekerLabel: jobSeeker.label || undefined,
+      });
     } catch (error) {
       logMessage("error", "マスタ選択の確定に失敗しました / failed to complete master picker", {
         error: error instanceof Error ? error.message : String(error),

@@ -359,6 +359,14 @@ Form bawaan Workflow Builder tidak bisa memuat opsi eksternal saat runtime. `ass
 | 選択肢が出ない / 空 | freee障害、Bolt→Assen認証失敗、3秒タイムアウト | Boltログ・runtimeログ、`min-instances`、freee tokenを確認 |
 | `team_not_allowed` | `SLACK_ALLOWED_TEAM_ID`不一致 | 自社`team_id`（`T07QM8P2VCK`）を確認 |
 | ステップがIn progressのまま | `functions.completeSuccess`未呼出 | モーダル送信・`function_execution_id`を確認 |
+| ボタンを押してもモーダルが開かない | Workflow由来の`block_actions`は`trigger_id`ではなく`interactivity.interactivity_pointer`を使う | Bolt側で両方を受け付けること。メッセージは**Assen Master PickerのDM**に届く（起動元チャンネルではない） |
+| 「進行中」のままDMが見えない | Appメッセージを見ていない | ホーム → エージェントとアプリ → Assen Master Picker を開く |
+
+E2E確認済み（2026-08-02）: リンク起動 → ボタン → モーダル →「小林」タイプアヘッドで`株式会社小林グリーンファーム` → 確定 → `functions.completeSuccess`。
+
+E2E verified (2026-08-02): link start → button → modal → typeahead "小林" → `株式会社小林グリーンファーム` → submit → `functions.completeSuccess`.
+
+E2E terverifikasi (2026-08-02): mulai dari tautan → tombol → modal → typeahead "小林" → `株式会社小林グリーンファーム` → kirim → `functions.completeSuccess`.
 
 ---
 

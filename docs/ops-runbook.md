@@ -21,7 +21,7 @@ Dokumen ini adalah prosedur eksekusi untuk bagian G checklist, "Provisioning ins
 | `assen-outbox-worker`（Worker Pool） | ✅ デプロイ済み・稼働中 | |
 | ClaudeワンクリックOAuth → Assen JWT → MCP `tools/list` | ✅ 実装・デプロイ済み（2026-08-01確認） | Claude Custom ConnectorでGoogle Workspaceログイン→28ツール。allowlist登録メールのみ接続可 |
 | Slack承認通知連携 | ✅ 設定済み・稼働確認済み（2026-07-24） | 既存の`sugukuru_slack_bot_token`（aiosxagent bot）を再利用し、`#審査完了`（`C00000000`）へ`chat.postMessage`が成功することを確認済み。詳細は6.3節追記参照 |
-| Slack Master Picker（Bolt） | 🔧 初回プロビジョニング手順あり | `assen-slack-bolt` Cloud Run + 新規Slackアプリ。詳細は6.4節・[`docs/slack-assen-master-picker-manifest.json`](slack-assen-master-picker-manifest.json) |
+| Slack Master Picker（Bolt） | ✅ 稼働・E2E確認済み（2026-08-02） | `assen-slack-bolt` + アプリ`Assen Master Picker`。タイプアヘッド「小林」→`株式会社小林グリーンファーム`まで確認。詳細は6.4節・運用マニュアル7.4 |
 
 **未完了・要フォローアップ**：ネットワーク層の追加防御（IAP／VPN）は現時点でドメイン・VPN機器の前提が無いため**意図的に見送り**（アプリ層OAuth＋allowlistを当面の正式方針として採用、8節参照）、GitHub Actions環境保護は未設定（`sugukurukabe`個人アカウントのGitHub Freeプランでは`required reviewers`保護ルール自体が使えないため、有料プランへのアップグレードか代替手段が必要、8節参照）。
 
