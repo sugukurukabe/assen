@@ -69,8 +69,8 @@ export function buildServerCard(baseUrl: string): ServerCard {
       publicListing:
         "外販β・レジストリ公開申請はM2/M3の客観ゲート通過後に行う（設計書§11） / Public-registry submission happens only after passing the M2/M3 objective gates (design doc §11) / Pengajuan registry publik dilakukan setelah lolos gate objektif M2/M3 (dokumen desain §11)",
     },
-    // LICENSEファイルに準拠。ライセンス方針が決まるまでの安全側デフォルト（全著作権留保） / Mirrors the LICENSE file; a conservative default until a licensing decision is made (all rights reserved) / Sesuai file LICENSE; default konservatif sampai keputusan lisensi dibuat (semua hak dilindungi)
-    license: "UNLICENSED",
+    // LICENSEファイルに準拠する / Mirrors the LICENSE file / Sesuai file LICENSE
+    license: "Apache-2.0",
     repository,
     contact: env.SERVER_CARD_CONTACT_URL || null,
     documentation: repository ? `${repository}/blob/main/docs/team-guide.md` : null,

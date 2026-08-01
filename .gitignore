@@ -13,3 +13,8 @@ backups/
 
 # cookbook-scout local candidates
 .cookbook-candidates/
+
+# Zキャリア求人抽出のローカル作業用（社外APIの取得データを公開リポジトリに載せない）
+# Local workspace for Z-Career job extraction (third-party API data must not enter the public repo)
+# Ruang kerja lokal untuk ekstraksi lowongan Z-Career (data API pihak ketiga tidak boleh masuk repo publik)
+.zcareer/

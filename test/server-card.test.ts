@@ -17,9 +17,9 @@ describe("buildServerCard", () => {
     expect(card.documentation).toBeNull();
   });
 
-  it("ライセンス方針が決まるまでUNLICENSEDを既定にする / defaults to UNLICENSED until a licensing decision is made", () => {
+  it("LICENSEに合わせてApache-2.0を返す / returns Apache-2.0 to match LICENSE", () => {
     const card = buildServerCard("https://assen.example.com");
-    expect(card.license).toBe("UNLICENSED");
+    expect(card.license).toBe("Apache-2.0");
   });
 
   it("mcpEndpointはbaseUrlに/mcpを付与する / mcpEndpoint appends /mcp to the base URL", () => {

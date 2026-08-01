@@ -12,14 +12,14 @@ ChatGPT Apps marketplace, etc.), split into three kinds: (1) infrastructure alre
 (2) decisions that require business/legal judgment, not just engineering, and (3) the M2/M3 objective gates from
 design doc §11 (mandatory, not yet met). This document does **not** authorize submission — per design doc v1 §11
 (line 24), public-registry submission happens only after passing M3's objective gate. The current milestone is
-M1 complete, M2 not started.
+M1 complete, with M2 Phase 1 (dispatch documents A2/A3/A10 + A4 ledger) and M2 Phase 2 (T2P documents ④-⑨ + non-hire-reason chain) in progress.
 
 Dokumen ini melacak pekerjaan yang diperlukan untuk mengajukan Assen ke registry MCP publik (direktori konektor
 Anthropic, marketplace ChatGPT Apps, dll.), dibagi menjadi tiga jenis: (1) infrastruktur yang sudah disiapkan di
 level kode, (2) keputusan yang membutuhkan penilaian bisnis/hukum, bukan hanya teknik, dan (3) gate objektif
 M2/M3 dari dokumen desain §11 (wajib, belum terpenuhi). Dokumen ini **tidak** mengotorisasi pengajuan — sesuai
 dokumen desain v1 §11 (baris 24), pengajuan registry publik dilakukan hanya setelah lolos gate objektif M3.
-Milestone saat ini adalah M1 selesai, M2 belum dimulai.
+Milestone saat ini adalah M1 selesai, dengan M2 Phase 1 (dokumen dispatch A2/A3/A10 + ledger A4) dan M2 Phase 2 (dokumen T2P ④-⑨ + rantai alasan tidak diterima) sedang berjalan.
 
 ---
 
@@ -34,7 +34,7 @@ Milestone saat ini adalah M1 selesai, M2 belum dimulai.
 | Server Card整備 | `repository`/`contact`/`documentation`/`license`欄を追加。実在しないURLは**捏造せずnullを返す**（`SERVER_CARD_REPOSITORY_URL`/`SERVER_CARD_CONTACT_URL`未設定時） |
 | 本番向けDockerfile | `Dockerfile`（`runtime`/`migrator`の2ターゲット、マルチステージ、非rootユーザー実行）。ローカルDocker buildで実際に起動・マイグレーション適用まで動作確認済み |
 | GitHub Actions CI | `.github/workflows/ci.yml`（lint/typecheck/test/legal:check-mapping/audit:verify/build、Postgres+MinIOを使った統合テスト、Dockerビルド検証） |
-| LICENSE・SECURITY.md | 既定は「全著作権留保」（ライセンス方針が決まるまでの安全側デフォルト）。SECURITY.mdの連絡先はTODOプレースホルダ（下記B参照） |
+| LICENSE・SECURITY.md | `LICENSE`はApache-2.0へ確定済み。SECURITY.mdの連絡先はTODOプレースホルダ（下記B参照） |
 | **本番実行パスの不具合修正** | `npm run build`後の`node dist/server.js`が実際には存在しないパスだった（実際は`dist/src/server.js`）ことと、`legal/`配下のJSON/テンプレート読込ロジックが固定階層の相対パスに依存しdist実行時に破綻することを検出・修正（`src/lib/project-root.ts`で祖先探索に変更）。Dockerコンテナを実際に起動し、`document_generate_draft`が使う`legal-mapping-loader`/`render-template`がdistから正しく読めることを確認済み |
 | outbox workerの実行環境 | cross-tenantポーリングループ（`listActiveTenantIds`/`processOutboxBatchForAllTenants`）・CLIエントリポイント（`src/services/outbox-worker/run.ts`、`pnpm run outbox:worker`）・Dockerfileの`outbox-worker`ターゲットを新規作成。承認通知・成約通知・週次KPI・T2P期限作成/接近通知のhandlerを登録済み。 |
 | テストスイートの汚染防止 | `transactional_outbox`はグローバルFIFOでpending行を取得するため、テストが自分の行を削除せずに残すと将来の実行で無関係な行を巻き込む不具合があった。`vitest.config.ts`に`fileParallelism: false`を設定し、`test/outbox*.test.ts`にafterAllでの行削除を追加して解消 |
@@ -56,7 +56,7 @@ Milestone saat ini adalah M1 selesai, M2 belum dimulai.
 | 項目 / Item / Item | 現状 / Current state / Status saat ini | 決定が必要な内容 / What must be decided / Apa yang harus diputuskan |
 |---|---|---|
 | リポジトリの配置 | **完了**：`aios`リポジトリの`apps/compliance/`へ実際に移設した（上記A節「monorepo統合」参照）。ブランチ`feat/apps-compliance-assen-migration`上での作業で、`aios`の`main`へのマージ・PR起票はまだ行っていない | 統合先ブランチ・PRのマージタイミングは壁の判断（このリポジトリは本番デプロイ中のため） |
-| ライセンス方針 | `LICENSE`は「全著作権留保」の暫定既定値 | 公開製品として外販するか、OSSライセンス（例: suguvisa-mcpの前例があればそれに合わせる）を採用するかを決定 |
+| ライセンス方針 | `LICENSE`・`package.json`・Server CardはApache-2.0へ統一済み | 外部公開時に追加のNOTICEや商標表記が必要かだけ最終確認 |
 | セキュリティ報告窓口 | `SECURITY.md`は「Slack `#30-dev`」のプレースホルダ | 外部提出前に実在する監視可能な連絡先（メール/フォーム）へ更新 |
 | Server Cardのrepository/contact実値 | `SERVER_CARD_REPOSITORY_URL`/`SERVER_CARD_CONTACT_URL`は未設定（null出力） | 実際のURL確定後に環境変数へ設定 |
 | OAuthプロバイダの確定方式 | **決定・実装・E2E確認済み**：(b)トークン交換層方式を採用し実装（`src/lib/token-exchange.ts`、上記G節参照）。本番署名鍵・issuer・実`GOOGLE_OAUTH_CLIENT_ID`を設定済みで、実際のGoogle Workspaceログイン→Assen JWT→MCP呼び出し成功まで確認済み（2026-07-24、[`docs/ops-runbook.md`](ops-runbook.md)6.2節参照）。allowlist（`TOKEN_EXCHANGE_ALLOWLIST_JSON`）は現時点でコード管理の環境変数のみ（`admin@example.co.jp`のみ登録）で、Workspace管理コンソールとの連携はしていない | メンバー追加時のallowlist更新運用の確立（現状は壁への手動依頼）。ネットワーク層の追加防御（IAP/VPN）は未実施 |
