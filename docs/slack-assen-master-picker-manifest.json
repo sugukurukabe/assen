@@ -20,19 +20,21 @@
   },
   "settings": {
     "event_subscriptions": {
-      "request_url": "https://REPLACE_WITH_BOLT_URL/slack/events",
+      "request_url": "https://assen-slack-bolt-aeqvsod3aq-an.a.run.app/slack/events",
       "bot_events": [
         "function_executed"
       ]
     },
     "interactivity": {
       "is_enabled": true,
-      "request_url": "https://REPLACE_WITH_BOLT_URL/slack/events",
-      "message_menu_options_url": "https://REPLACE_WITH_BOLT_URL/slack/events"
+      "request_url": "https://assen-slack-bolt-aeqvsod3aq-an.a.run.app/slack/events",
+      "message_menu_options_url": "https://assen-slack-bolt-aeqvsod3aq-an.a.run.app/slack/events"
     },
     "org_deploy_enabled": true,
     "socket_mode_enabled": false,
-    "token_rotation_enabled": false
+    "token_rotation_enabled": false,
+    "hermes_app_type": "remote",
+    "function_runtime": "remote"
   },
   "functions": {
     "pick_master_values": {
@@ -47,21 +49,21 @@
           "name": "assignee"
         },
         "ask_staff": {
-          "type": "slack#/types/boolean",
+          "type": "boolean",
           "title": "スタッフを選ぶ",
           "description": "staff_listからスタッフを選ばせる",
           "is_required": false,
           "name": "ask_staff"
         },
         "ask_partner": {
-          "type": "slack#/types/boolean",
+          "type": "boolean",
           "title": "取引先を選ぶ",
           "description": "partner_listから会社を選ばせる",
           "is_required": false,
           "name": "ask_partner"
         },
         "ask_job_seeker": {
-          "type": "slack#/types/boolean",
+          "type": "boolean",
           "title": "求職者を選ぶ",
           "description": "job_seeker_listから求職者を選ばせる",
           "is_required": false,

@@ -48,6 +48,10 @@ export function createBoltApp(): { app: App; mcpClient: AssenMcpClient } {
     endpoints: "/slack/events",
     processBeforeResponse: true,
     attachFunctionToken: true,
+    // プレースホルダtokenや一時的な失効でも起動を落とさない（リクエスト署名検証は別途有効）
+    // Do not crash on startup for placeholder/expired tokens (request signature verification stays on)
+    // Jangan crash saat startup karena token placeholder/kedaluwarsa (verifikasi tanda tangan request tetap aktif)
+    tokenVerificationEnabled: !env.SLACK_BOT_TOKEN.includes("placeholder"),
     customRoutes: [
       {
         path: "/health",
