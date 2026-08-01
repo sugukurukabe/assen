@@ -40,6 +40,20 @@ OAuth sekali klik adalah prosedur standar: tambahkan URL `/mcp` Assen ke Claude 
 2. `inquiry_update` — 正式申込セット送付・書類受領。7日無応答で自動クローズ
 3. `inquiry_promote` — セット完備時のみ帳簿②へ昇格（**WF-15A起票条件の正本**）
 
+### 流入元タグ / Source tag / Tag sumber
+
+経路enumは6値（`sugukuru_job` / `win_job` / `sns_application` / `other_agency` / `direct_referral` / `internal_conversion`）で、
+**広告の媒体・フォームまでは区別しない**。Metaリードフォームからのリードも自然流入のSNS応募も同じ `sns_application` に入る。
+広告費の判断（CPL・経路別申込率）にはこれでは足りないため、`inquiry_record` / `inquiry_update` の
+`sourceTag`（例: `meta_lead_form` / `meta_dm` / `ig_organic`）で細かい単位を持つ。
+`sourceDetail` にキャンペーン名・広告セットIDを入れると内訳まで残せる（個人情報は入れない）。
+
+`kpi_weekly_summary` の `inquiryBySourceTag` がタグ別に 問い合わせ→セット送付→受領→候補者 を返す。
+タグ未設定は `untagged` にまとまるので、広告開始後に `untagged` が増えていたら付け忘れとして扱う。
+
+**制約**: タグは `inquiries` にしか載らない。`job_seekers` へは引き継がれないため、
+タグ別の成約数・成約単価はまだ出せない（`inquiryBySourceTag` は候補者昇格まで）。
+
 ## オシン日次・週次 / Oshin daily & weekly / Harian & mingguan Oshin
 
 | タイミング | プロンプト | 主なツール |

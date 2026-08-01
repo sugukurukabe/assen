@@ -112,7 +112,10 @@ export function createBoltApp(): { app: App; mcpClient: AssenMcpClient } {
   // function_executedの到達とcallback_id不一致を診断できるようにする
   // Log function_executed arrivals so callback_id mismatches are diagnosable
   // Catat kedatangan function_executed agar ketidakcocokan callback_id bisa didiagnosis
-  app.event("function_executed", async ({ event }) => {
+  // 中身はログだけでawaitが無いので、asyncにせずresolve済みPromiseを返す（require-await回避）
+  // The body only logs and never awaits, so return a resolved promise instead of marking it async
+  // Isinya hanya log tanpa await, jadi kembalikan promise yang sudah resolve alih-alih async
+  app.event("function_executed", ({ event }) => {
     const callbackId =
       typeof event === "object" &&
       event !== null &&
@@ -132,6 +135,7 @@ export function createBoltApp(): { app: App; mcpClient: AssenMcpClient } {
           ? Object.keys((event as { inputs: Record<string, unknown> }).inputs)
           : [],
     });
+    return Promise.resolve();
   });
 
   registerMasterPicker(app, mcpClient);
