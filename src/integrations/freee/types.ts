@@ -7,10 +7,8 @@ export interface StaffMasterCandidate {
   freeeEmployeeId: string;
   staffId?: string;
   displayName: string;
-  kana?: string;
   employeeNumber?: string;
   retireDate?: string;
-  employmentType?: string;
 }
 
 export interface PartnerMasterCandidate {

@@ -9,6 +9,7 @@ import { acquireTenantScopedDb } from "../src/db/client.js";
 import { jobSeekers } from "../src/db/schema/ledgers.js";
 import { partySnapshots } from "../src/db/schema/party-snapshots.js";
 import { encryptPii } from "../src/lib/pii-crypto.js";
+import { FreeeApiClient } from "../src/integrations/freee/client.js";
 import { listJobSeekers } from "../src/services/list-options/list-job-seekers.js";
 import { listPartners } from "../src/services/list-options/list-partners.js";
 import { listStaff } from "../src/services/list-options/list-staff.js";
@@ -17,6 +18,7 @@ import { FreeeIntegrationError } from "../src/integrations/freee/types.js";
 import {
   readStaffIdMapping,
   SecretManagerFreeeTokenProvider,
+  type AccessTokenProvider,
   type SecretJsonStore,
 } from "../src/integrations/freee/secret-manager-store.js";
 
@@ -67,14 +69,12 @@ function expectMinimalResponse(serialized: string): void {
 }
 
 describe("Slack option list services", () => {
-  it("staff_list returns ASSEN staffId values and searches name, kana, employee number, and status", async () => {
+  it("staff_list returns ASSEN staffId values and searches name, employee number, and status", async () => {
     const staffWithSecrets: StaffMasterCandidate & { address: string; birthDate: string; bankAccount: string } = {
       freeeEmployeeId: "2817063",
-      staffId: "staff-sugiyanto",
+      staffId: "I-0004",
       displayName: "スギヤント",
-      kana: "スギヤント",
       employeeNumber: "I-0004",
-      employmentType: "temporary",
       address: "鹿児島県秘密住所",
       birthDate: "1990-01-01",
       bankAccount: "JP90BANK",
@@ -82,14 +82,14 @@ describe("Slack option list services", () => {
     const directory = new FakeDirectory(
       [
         staffWithSecrets,
-        { freeeEmployeeId: "1", staffId: "staff-kabe", displayName: "壁 晃弘", employmentType: "board-member" },
+        { freeeEmployeeId: "1", staffId: "staff-kabe", displayName: "壁 晃弘" },
         { freeeEmployeeId: "2", staffId: "staff-retired", displayName: "退職 太郎", retireDate: "2026-01-31" },
       ],
       [],
     );
 
     const result = await listStaff({ query: "I-0004", status: "active" }, directory);
-    expect(result).toEqual({ items: [{ value: "staff-sugiyanto", label: "スギヤント" }], total: 1, truncated: false });
+    expect(result).toEqual({ items: [{ value: "I-0004", label: "スギヤント" }], total: 1, truncated: false });
     expectMinimalResponse(JSON.stringify(result));
 
     const active = await listStaff({}, directory);
@@ -97,9 +97,20 @@ describe("Slack option list services", () => {
     expect(active.items.map((item) => item.value)).toContain("staff-kabe");
   });
 
-  it("staff_list fails explicitly when a visible freee employee lacks staffId mapping", async () => {
+  it("staff_list fails explicitly when a visible freee employee has no num and no staffId override", async () => {
     const directory = new FakeDirectory([{ freeeEmployeeId: "missing", displayName: "未対応 花子" }], []);
     await expect(listStaff({ query: "未対応" }, directory)).rejects.toBeInstanceOf(FreeeIntegrationError);
+  });
+
+  it("staff_list fails explicitly when two freee employees resolve to the same staffId", async () => {
+    const directory = new FakeDirectory(
+      [
+        { freeeEmployeeId: "1", staffId: "I-0001", displayName: "重複 一郎" },
+        { freeeEmployeeId: "2", staffId: "I-0001", displayName: "重複 二郎" },
+      ],
+      [],
+    );
+    await expect(listStaff({}, directory)).rejects.toBeInstanceOf(FreeeIntegrationError);
   });
 
   it("partner_list returns official company labels and searches name, kana, shortcut, and status", async () => {
@@ -204,6 +215,77 @@ describe("freee Secret Manager helpers", () => {
       ],
     });
     await expect(readStaffIdMapping(store, "projects/p/secrets/staff-map")).rejects.toBeInstanceOf(FreeeIntegrationError);
+  });
+});
+
+describe("FreeeApiClient.listStaffCandidates", () => {
+  const env = {
+    FREEE_COMPANY_ID: "10745310",
+    FREEE_HR_BASE_URL: "https://hr.example.test",
+    FREEE_ACCOUNTING_BASE_URL: "https://accounting.example.test",
+  };
+  const tokenProvider: AccessTokenProvider = { getAccessToken: () => Promise.resolve("token") };
+
+  function jsonResponse(body: unknown): Response {
+    return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+  }
+
+  it("defaults staffId to the freee employee number (num) and applies Secret overrides, without ever calling profile_rule", async () => {
+    const requestedUrls: string[] = [];
+    const fetchImpl = (input: string | URL) => {
+      const url = input.toString();
+      requestedUrls.push(url);
+      if (url.includes("profile_rule")) {
+        return Promise.reject(new Error("profile_rule must not be called (year/month are required and it leaks PII)"));
+      }
+      return Promise.resolve(
+        jsonResponse({
+          employees: [
+            { id: 2817063, num: "I-0004", display_name: "RIKI", retire_date: null },
+            { id: 3262070, num: "", display_name: "RAJIB", retire_date: "2025-07-31" },
+          ],
+          total_count: 2,
+        }),
+      );
+    };
+    const client = new FreeeApiClient(env, tokenProvider, fetchImpl as unknown as typeof fetch);
+
+    const withoutOverride = await client.listStaffCandidates(new Map());
+    expect(withoutOverride).toEqual([
+      { freeeEmployeeId: "2817063", staffId: "I-0004", displayName: "RIKI", employeeNumber: "I-0004", retireDate: undefined },
+      { freeeEmployeeId: "3262070", staffId: undefined, displayName: "RAJIB", employeeNumber: undefined, retireDate: "2025-07-31" },
+    ]);
+
+    const withOverride = await client.listStaffCandidates(new Map([["3262070", "staff-rajib-override"]]));
+    expect(withOverride[1]?.staffId).toBe("staff-rajib-override");
+
+    expect(requestedUrls.some((url) => url.includes("profile_rule"))).toBe(false);
+    expect(requestedUrls.every((url) => url.includes("/employees"))).toBe(true);
+  });
+
+  it("parses the bare array shape freee HR actually returns and paginates until a short page", async () => {
+    const requestedUrls: string[] = [];
+    const firstPage = Array.from({ length: 100 }, (_, index) => ({
+      id: 1000 + index,
+      num: `I-${String(index).padStart(4, "0")}`,
+      display_name: `STAFF ${index}`,
+      retire_date: null,
+    }));
+    const secondPage = [{ id: 2000, num: "S-001", display_name: "壁晃弘", retire_date: null }];
+    const fetchImpl = (input: string | URL) => {
+      const url = input.toString();
+      requestedUrls.push(url);
+      return Promise.resolve(jsonResponse(url.includes("offset=0") ? firstPage : secondPage));
+    };
+    const client = new FreeeApiClient(env, tokenProvider, fetchImpl as unknown as typeof fetch);
+
+    const candidates = await client.listStaffCandidates(new Map());
+
+    expect(candidates).toHaveLength(101);
+    expect(candidates[0]?.staffId).toBe("I-0000");
+    expect(candidates.at(-1)?.staffId).toBe("S-001");
+    expect(requestedUrls).toHaveLength(2);
+    expect(requestedUrls[1]).toContain("offset=100");
   });
 });
 

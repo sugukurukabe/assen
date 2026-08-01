@@ -59,7 +59,7 @@ partner_list を queryなしで呼び、items と total を見せて。機微情
 ```
 
 ```text
-staff_list を呼び出し、value が氏名ではなく staffId になっていることを確認して
+staff_list を呼び出し、value が氏名ではなく staffId（既定はfreee社員番号num、例: I-0004）になっていることを確認して
 ```
 
 `job_seeker_list` はAssen DB（帳簿②）だけで動きます。`staff_list` / `partner_list` はfreee OAuthとSecret Managerの対応表がCloud Runに設定されている必要があります。未設定なら空配列ではなくエラーが返ります（正常な0件と区別できます）。

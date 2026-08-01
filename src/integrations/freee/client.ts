@@ -13,24 +13,18 @@ const employeeSchema = z.object({
   num: z.string().nullable().optional(),
   display_name: z.string().nullable().optional(),
   retire_date: z.string().nullable().optional(),
-  employment_type: z.string().nullable().optional(),
 });
 
-const employeesResponseSchema = z.object({
-  employees: z.array(employeeSchema).default([]),
-  total_count: z.number().int().nonnegative().optional(),
-});
-
-const employeeProfileRuleSchema = z.object({
-  last_name_kana: z.string().nullable().optional(),
-  first_name_kana: z.string().nullable().optional(),
-  employment_type: z.string().nullable().optional(),
-});
-
-const employeeProfileResponseSchema = z.object({
-  employee_profile_rule: employeeProfileRuleSchema.optional(),
-  profile_rule: employeeProfileRuleSchema.optional(),
-});
+// freee人事労務の従業員一覧は素の配列を返す（実機で確認済み）。将来ラップ形式に変わっても壊れないよう両方受ける。
+// freee HR returns a bare array for the employee list (verified against the live API); accept the wrapped shape too so a future change does not break us.
+// freee HR mengembalikan array biasa untuk daftar karyawan (terverifikasi pada API asli); terima juga bentuk terbungkus agar perubahan di masa depan tidak merusak.
+const employeesResponseSchema = z.union([
+  z.array(employeeSchema),
+  z.object({
+    employees: z.array(employeeSchema).default([]),
+    total_count: z.number().int().nonnegative().optional(),
+  }),
+]);
 
 const partnerSchema = z.object({
   id: z.union([z.number(), z.string()]),
@@ -57,20 +51,17 @@ export class FreeeApiClient {
 
   async listStaffCandidates(staffIdByFreeeEmployeeId: Map<string, string>): Promise<StaffMasterCandidate[]> {
     const employees = await this.fetchAllEmployees();
-    const profiles = await mapWithConcurrency(employees, 5, async (employee) => {
-      const profile = await this.fetchEmployeeProfile(String(employee.id));
-      const kana = [profile.last_name_kana, profile.first_name_kana].filter(Boolean).join(" ");
+    return employees.map((employee) => {
+      const freeeEmployeeId = String(employee.id);
+      const employeeNumber = employee.num?.trim() || undefined;
       return {
-        freeeEmployeeId: String(employee.id),
-        staffId: staffIdByFreeeEmployeeId.get(String(employee.id)),
-        displayName: employee.display_name ?? String(employee.id),
-        kana: kana || undefined,
-        employeeNumber: employee.num ?? undefined,
+        freeeEmployeeId,
+        staffId: staffIdByFreeeEmployeeId.get(freeeEmployeeId) ?? employeeNumber,
+        displayName: employee.display_name ?? freeeEmployeeId,
+        employeeNumber,
         retireDate: employee.retire_date ?? undefined,
-        employmentType: profile.employment_type ?? employee.employment_type ?? undefined,
       } satisfies StaffMasterCandidate;
     });
-    return profiles;
   }
 
   async listPartnerCandidates(): Promise<PartnerMasterCandidate[]> {
@@ -98,19 +89,14 @@ export class FreeeApiClient {
       url.searchParams.set("offset", String(offset));
       url.searchParams.set("with_no_payroll_calculation", "true");
       const payload = employeesResponseSchema.parse(await this.fetchJson(url));
-      employees.push(...payload.employees);
-      offset += payload.employees.length;
-      if (payload.employees.length < limit || (payload.total_count !== undefined && offset >= payload.total_count)) {
+      const page = Array.isArray(payload) ? payload : payload.employees;
+      const totalCount = Array.isArray(payload) ? undefined : payload.total_count;
+      employees.push(...page);
+      offset += page.length;
+      if (page.length < limit || (totalCount !== undefined && offset >= totalCount)) {
         return employees;
       }
     }
-  }
-
-  private async fetchEmployeeProfile(employeeId: string): Promise<z.infer<typeof employeeProfileRuleSchema>> {
-    const url = new URL(`${this.env.FREEE_HR_BASE_URL}/employees/${employeeId}/profile_rule`);
-    url.searchParams.set("company_id", this.env.FREEE_COMPANY_ID);
-    const payload = employeeProfileResponseSchema.parse(await this.fetchJson(url));
-    return payload.employee_profile_rule ?? payload.profile_rule ?? {};
   }
 
   private async fetchJson(url: URL): Promise<unknown> {
@@ -123,13 +109,4 @@ export class FreeeApiClient {
     }
     return response.json();
   }
-}
-
-async function mapWithConcurrency<T, R>(items: T[], concurrency: number, mapper: (item: T) => Promise<R>): Promise<R[]> {
-  const results: R[] = [];
-  for (let index = 0; index < items.length; index += concurrency) {
-    const chunk = items.slice(index, index + concurrency);
-    results.push(...(await Promise.all(chunk.map(mapper))));
-  }
-  return results;
 }

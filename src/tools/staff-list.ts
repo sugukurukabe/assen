@@ -15,7 +15,7 @@ const inputSchema = {
   query: z
     .string()
     .optional()
-    .describe("氏名・カナ・社員番号・staffIdの部分一致 / Partial match against name, kana, employee number, or staffId / Cocok sebagian pada nama, kana, nomor karyawan, atau staffId"),
+    .describe("氏名・社員番号・staffIdの部分一致（カナ列はfreee人事労務から取得しないため未対応） / Partial match against name, employee number, or staffId (kana is not fetched from freee HR, so it is not supported) / Cocok sebagian pada nama, nomor karyawan, atau staffId (kana tidak diambil dari freee HR sehingga tidak didukung)"),
   status: z.enum(["active", "retired", "all"]).optional().describe("在籍状態（既定active） / Employment status (default active) / Status kerja (default active)"),
   limit: z.number().int().positive().max(100).optional().describe("最大件数（既定50・上限100） / Max rows (default 50, cap 100) / Maks baris (default 50, batas 100)"),
 };
@@ -46,7 +46,7 @@ export function registerStaffList(server: McpServer, context: ServiceContext): v
         });
         return toToolErrorResult(
           "スタッフ候補を取得できませんでした / Failed to list staff options",
-          "freee OAuth・Secret Manager・staffId対応表を確認してください。空配列ではなく接続失敗として扱ってください。",
+          "freee OAuth・Secret Manager・staffId対応表（社員番号numが空の従業員の上書き）を確認してください。空配列ではなく接続失敗として扱ってください。",
         );
       }
     },

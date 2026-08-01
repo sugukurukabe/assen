@@ -353,10 +353,15 @@ gcloud run deploy assen-runtime \
 
 Claudeから`staff_list` / `partner_list`を使うには、既存OAuthに加えてfreee用SecretとCloud Run envが必要です。**未設定でもAssen全体は起動し、DB系ツール（`job_seeker_list`含む）は使えます。** freee未設定時は当該2ツールだけ明示エラーになります。
 
-Secrets（例）:
-- `assen-freee-client-id` / `assen-freee-client-secret` / `assen-freee-company-id`
+**重要（2026-07-31修正）**: 当初`staff_list`はfreee従業員ごとに`/employees/{id}/profile_rule`を呼んでカナ・雇用形態を取得していたが、このAPIは`year`/`month`が必須のため実際には**必ず400で失敗していた**（実機のfreee APIで確認済み）。この呼び出しは削除し、`staffId`は「freee社員番号(`num`、例: `I-0004`) を既定値とし、Secret対応表がある場合のみ上書きする」方式に変更した。これによりカナ検索は提供しない（`job_seeker_list`が「カナ列は現スキーマにない」としているのと同様の扱い）。
+
+**重要（2026-08-01修正）**: freee人事労務の従業員一覧`GET /hr/api/v1/companies/{id}/employees`は`{"employees":[...]}`ではなく**素の配列**を返す（実機で確認済み）。当初のスキーマはラップ形式のみを受けていたためパースで必ず失敗していた。現在は配列とラップ形式の両方を受け、ページングは「1ページ100件未満なら終了」で判定する（素の配列レスポンスには`total_count`が無い）。
+
+Secrets（`sugukurucorpsite`に作成済み。レプリケーションは`asia-northeast1`のuser-managed）:
+- `assen-freee-client-id` / `assen-freee-client-secret` / `assen-freee-company-id`（`10745310` = スグクル株式会社）
 - `assen-freee-token`（JSON: `{"accessToken","refreshToken","expiresAtEpochSeconds"}`）
-- `assen-freee-staff-id-mapping`（JSON: `{"employees":[{"freeeEmployeeId":"...","staffId":"..."}]}`）
+- `assen-freee-staff-id-mapping`（JSON: `{"employees":[{"freeeEmployeeId":"...","staffId":"..."}]}`。freee社員番号(`num`)が空の従業員、またはstaffIdを帳簿側の別キーへ意図的に変えたい従業員だけを例外として書く「上書き表」。新入社員の追加では更新不要）
+  - 2026-08-01時点の実値は1件のみ: `{"employees":[{"freeeEmployeeId":"3262070","staffId":"RETIRED-3262070"}]}`。この従業員（RAJIB、2025-07-31退職）だけが`num`が空のため、`status="all"` / `"retired"`で明示エラーになるのを避ける目的で入れている。freee側で`num`を採番したらこのエントリは削除してよい。
 
 `assen-runtime` SAに必要なIAM:
 - token secret: `roles/secretmanager.secretAccessor` と `roles/secretmanager.secretVersionAdder`（refresh後の新version追加）
@@ -364,6 +369,31 @@ Secrets（例）:
 
 Cloud Run env例:
 `FREEE_CLIENT_ID` / `FREEE_CLIENT_SECRET` / `FREEE_COMPANY_ID` / `FREEE_TOKEN_SECRET_NAME` / `FREEE_STAFF_ID_MAPPING_SECRET_NAME` / `FREEE_CACHE_TTL_SECONDS=300`
+
+初回tokenの取得: freee developers（`https://app.secure.freee.co.jp/developers`）で**Assen専用アプリ**を作成する（freee MCPが使う既存アプリとは分ける。refresh tokenはワンタイムでローテーションするため、共用すると相互に失効させる）。人事労務・会計の読み取り権限を付与し、コールバックURLに`http://localhost:8946/callback`を登録する。その後ローカルで：
+
+```bash
+FREEE_CLIENT_ID=<アプリのclient_id> FREEE_CLIENT_SECRET=<アプリのclient_secret> \
+  pnpm run freee:get-token
+```
+
+アプリ管理画面の「認証用URL」をそのまま渡すこともできる（client_idの転記ミスを避けられるので推奨）:
+
+```bash
+FREEE_AUTHORIZE_URL='<アプリ管理画面の認証用URL>' FREEE_CLIENT_SECRET=<アプリのclient_secret> \
+  pnpm run freee:get-token
+```
+
+ブラウザでfreeeにログイン・スグクル株式会社の事業所を選んで許可すると、`{"accessToken","refreshToken","expiresAtEpochSeconds"}`のJSONが表示される。これを`assen-freee-token`Secretの初期値にする。
+
+`client_id`が違うと、認可画面に赤帯で「指定されたアプリケーションは存在しません。」が出るだけで原因が分かりにくい。切り分けはブラウザを使わずtokenエンドポイントへダミーの認可コードを投げるのが速い（`application_can_not_be_found`ならclient_id/secretの組が誤り、`invalid_grant`なら資格情報は正しくコードだけが無効）:
+
+```bash
+curl -sS -X POST -H "Content-Type:application/x-www-form-urlencoded" \
+  -d grant_type=authorization_code -d client_id=<client_id> -d client_secret=<client_secret> \
+  -d code=dummy -d redirect_uri=http%3A%2F%2Flocalhost%3A8946%2Fcallback \
+  https://accounts.secure.freee.co.jp/public_api/token
+```
 
 Phase B前ゲート: freee会計で除外7社を`available=false`にし、小林グリーンファーム・パワーウィング・山崎農園を正式名称で登録する。
 
