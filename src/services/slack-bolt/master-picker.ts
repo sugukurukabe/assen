@@ -188,11 +188,36 @@ function actionIdToToolName(actionId: string): ListToolName | undefined {
  * Registers the pick_master_values custom step and its modal/options handlers
  * Mendaftarkan custom step pick_master_values serta handler modal/options-nya
  */
+function extractAssignee(inputs: Record<string, unknown>): string {
+  const raw = inputs.assignee;
+  if (typeof raw === "string" && raw.trim().length > 0) {
+    return raw.trim();
+  }
+  if (typeof raw === "object" && raw !== null) {
+    const record = raw as Record<string, unknown>;
+    if (typeof record.id === "string" && record.id.trim().length > 0) {
+      return record.id.trim();
+    }
+    if (typeof record.user_id === "string" && record.user_id.trim().length > 0) {
+      return record.user_id.trim();
+    }
+  }
+  return "";
+}
+
 export function registerMasterPicker(app: App, mcpClient: AssenMcpClient): void {
   app.function(FUNCTION_CALLBACK_ID, async ({ client, inputs, fail, body }) => {
     try {
-      const assignee = typeof inputs.assignee === "string" ? inputs.assignee : "";
+      logMessage("info", "pick_master_valuesを開始します / starting pick_master_values", {
+        inputKeys: Object.keys(inputs ?? {}),
+        assigneeType: typeof inputs?.assignee,
+      });
+
+      const assignee = extractAssignee((inputs ?? {}) as Record<string, unknown>);
       if (!assignee) {
+        logMessage("warning", "assigneeが空のためfailします / failing because assignee is empty", {
+          assigneeRaw: inputs?.assignee,
+        });
         await fail({ error: "assignee（選択担当者）が必要です" });
         return;
       }
@@ -224,7 +249,7 @@ export function registerMasterPicker(app: App, mcpClient: AssenMcpClient): void 
         functionExecutionId,
       };
 
-      await client.chat.postMessage({
+      const posted = await client.chat.postMessage({
         channel: assignee,
         text: `${title}：下のボタンから候補を選んでください`,
         blocks: [
@@ -248,6 +273,12 @@ export function registerMasterPicker(app: App, mcpClient: AssenMcpClient): void 
             ],
           },
         ],
+      });
+      logMessage("info", "候補選択メッセージを送信しました / sent master picker message", {
+        assignee,
+        channel: posted.channel,
+        ts: posted.ts,
+        functionExecutionId,
       });
     } catch (error) {
       logMessage("error", "pick_master_valuesに失敗しました / pick_master_values failed", {

@@ -86,6 +86,31 @@ export function createBoltApp(): { app: App; mcpClient: AssenMcpClient } {
     });
   }
 
+  // function_executedの到達とcallback_id不一致を診断できるようにする
+  // Log function_executed arrivals so callback_id mismatches are diagnosable
+  // Catat kedatangan function_executed agar ketidakcocokan callback_id bisa didiagnosis
+  app.event("function_executed", async ({ event }) => {
+    const callbackId =
+      typeof event === "object" &&
+      event !== null &&
+      "function" in event &&
+      typeof (event as { function?: { callback_id?: unknown } }).function?.callback_id === "string"
+        ? (event as { function: { callback_id: string } }).function.callback_id
+        : "unknown";
+    logMessage("info", "function_executedを受信しました / received function_executed", {
+      callbackId,
+      functionExecutionId:
+        typeof (event as { function_execution_id?: unknown }).function_execution_id === "string"
+          ? (event as { function_execution_id: string }).function_execution_id
+          : undefined,
+      inputKeys:
+        typeof (event as { inputs?: unknown }).inputs === "object" &&
+        (event as { inputs?: object }).inputs !== null
+          ? Object.keys((event as { inputs: Record<string, unknown> }).inputs)
+          : [],
+    });
+  });
+
   registerMasterPicker(app, mcpClient);
   return { app, mcpClient };
 }
