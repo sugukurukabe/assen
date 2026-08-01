@@ -295,12 +295,24 @@ export function registerMasterPicker(app: App, mcpClient: AssenMcpClient): void 
     // Capture trigger_id before ack (views.open must happen within 3 seconds)
     // Ambil trigger_id sebelum ack (views.open harus dalam 3 detik)
     const bodyRecord = body as unknown as Record<string, unknown>;
-    const triggerId = typeof bodyRecord.trigger_id === "string" ? bodyRecord.trigger_id : undefined;
+    const interactivity =
+      typeof bodyRecord.interactivity === "object" && bodyRecord.interactivity !== null
+        ? (bodyRecord.interactivity as Record<string, unknown>)
+        : undefined;
+    const triggerId =
+      (typeof bodyRecord.trigger_id === "string" && bodyRecord.trigger_id.length > 0
+        ? bodyRecord.trigger_id
+        : undefined) ??
+      (typeof interactivity?.interactivity_pointer === "string" &&
+      interactivity.interactivity_pointer.length > 0
+        ? interactivity.interactivity_pointer
+        : undefined);
     logMessage("info", "open_master_pickerアクションを受信 / received open_master_picker action", {
       bodyType: typeof bodyRecord.type === "string" ? bodyRecord.type : undefined,
-      bodyKeys: Object.keys(bodyRecord).slice(0, 30),
+      bodyKeys: Object.keys(bodyRecord).slice(0, 40),
       hasTriggerId: Boolean(triggerId),
       hasFunctionData: Boolean(bodyRecord.function_data),
+      rawHasTriggerIdKey: Object.prototype.hasOwnProperty.call(bodyRecord, "trigger_id"),
     });
     await ack();
     try {
